@@ -1,7 +1,7 @@
 # backend/app/services/zip_extractor.py
-# Recursive ZIP file extraction service
-# Unpacks nested ZIPs and filters to supported file formats (PDF, DOCX, XLSX, etc.)
-# Handles: nested ZIPs, unicode filenames, corrupt archives, path traversal attacks
+# Recursive archive extraction service (ZIP and 7z)
+# Unpacks nested archives and filters to supported file formats (PDF, DOCX, XLSX, etc.)
+# Handles: nested ZIPs/7z, unicode filenames, corrupt archives, path traversal attacks
 # Related: pipeline.py (called during UNPACKING phase)
 
 import logging
@@ -9,6 +9,12 @@ import os
 import tempfile
 import zipfile
 from pathlib import Path
+
+try:
+    import py7zr
+    HAS_7Z = True
+except ImportError:
+    HAS_7Z = False
 
 logger = logging.getLogger(__name__)
 
@@ -181,14 +187,83 @@ async def _extract_zip(
     return results
 
 
+async def _extract_7z(
+    archive_path: Path,
+    dest_dir: Path,
+) -> list[tuple[Path, str]]:
+    """Extract a 7z archive and return supported files.
+
+    Args:
+        archive_path: Path to the .7z file.
+        dest_dir: Directory to extract files into.
+
+    Returns:
+        Flat list of (extracted_file_path, original_filename) tuples.
+    """
+    if not HAS_7Z:
+        logger.warning(
+            "py7zr not installed — cannot extract %s. "
+            "Install with: pip install py7zr",
+            archive_path.name,
+        )
+        return []
+
+    results: list[tuple[Path, str]] = []
+
+    try:
+        with py7zr.SevenZipFile(archive_path, mode="r") as szf:
+            szf.extractall(path=str(dest_dir))
+
+        # Walk extracted directory and collect supported files
+        for root, _dirs, files in os.walk(dest_dir):
+            for filename in files:
+                file_path = Path(root) / filename
+                ext = file_path.suffix.lower()
+
+                if ext == ".zip":
+                    # Nested ZIP inside 7z: extract it
+                    nested_dest = Path(tempfile.mkdtemp(prefix="nested_zip_from_7z_"))
+                    nested_results = await _extract_zip(file_path, nested_dest)
+                    results.extend(nested_results)
+                elif ext == ".7z":
+                    # Nested 7z
+                    nested_dest = Path(tempfile.mkdtemp(prefix="nested_7z_"))
+                    nested_results = await _extract_7z(file_path, nested_dest)
+                    results.extend(nested_results)
+                elif ext in SUPPORTED_EXTENSIONS:
+                    results.append((file_path, filename))
+                    logger.debug(
+                        "Extracted supported file: %s from %s",
+                        filename,
+                        archive_path.name,
+                    )
+                else:
+                    logger.debug(
+                        "Skipping unsupported file %r (%s) in %s",
+                        filename,
+                        ext,
+                        archive_path.name,
+                    )
+
+    except Exception:
+        logger.warning(
+            "Failed to extract 7z archive: %s — skipping",
+            archive_path.name,
+            exc_info=True,
+        )
+
+    return results
+
+
 async def extract_files(
     upload_paths: list[Path],
 ) -> list[tuple[Path, str]]:
-    """Process uploaded files, extracting ZIPs and filtering to supported formats.
+    """Process uploaded files, extracting archives and filtering to supported formats.
 
-    Takes a list of uploaded file paths (which may include ZIP archives).
+    Takes a list of uploaded file paths (which may include ZIP/7z archives).
     - Regular files with supported extensions → pass through as-is
     - ZIP files → extract recursively (handles nested ZIPs)
+    - 7z files → extract recursively (handles nested archives)
     - Unsupported file types → filtered out with a warning
 
     Args:
@@ -196,7 +271,7 @@ async def extract_files(
 
     Returns:
         Flat list of (file_path, original_filename) tuples for all
-        supported files (both direct uploads and extracted from ZIPs).
+        supported files (both direct uploads and extracted from archives).
     """
     results: list[tuple[Path, str]] = []
 
@@ -216,6 +291,22 @@ async def extract_files(
                 dest_dir,
             )
             extracted = await _extract_zip(path, dest_dir)
+            results.extend(extracted)
+            logger.info(
+                "Extracted %d supported files from %s",
+                len(extracted),
+                path.name,
+            )
+
+        elif ext == ".7z":
+            # Extract 7z to a temp directory
+            dest_dir = Path(tempfile.mkdtemp(prefix="7z_extract_"))
+            logger.info(
+                "Extracting 7z archive %s to %s",
+                path.name,
+                dest_dir,
+            )
+            extracted = await _extract_7z(path, dest_dir)
             results.extend(extracted)
             logger.info(
                 "Extracted %d supported files from %s",

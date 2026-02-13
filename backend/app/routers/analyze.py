@@ -61,7 +61,7 @@ def _build_progress(record: dict) -> AnalysisProgress:
     docs_total = metrics.get("total_files", docs_parsed)
 
     # Estimate progress percent from status
-    status_progress = {
+    analysis_status = {
         "pending": 0,
         "unpacking": 5,
         "parsing": 15,
@@ -70,8 +70,9 @@ def _build_progress(record: dict) -> AnalysisProgress:
         "evaluating": 85,
         "completed": 100,
         "failed": 0,
+        "canceled": 0,
     }
-    progress_pct = status_progress.get(status, 0)
+    progress_pct = analysis_status.get(status, 0)
 
     # Refine progress during extraction phase based on events
     if status == "extracting" and docs_total > 0:
@@ -102,6 +103,7 @@ def _status_label(status: str) -> str | None:
         "evaluating": "Vertinama kokybė...",
         "completed": "Analizė užbaigta",
         "failed": "Klaida",
+        "canceled": "Atšaukta",
     }
     return labels.get(status)
 
@@ -326,7 +328,7 @@ async def stream_analysis_progress(
                     last_status = current_status
 
                 # Close on terminal status
-                if current_status in ("completed", "failed"):
+                if current_status in ("completed", "failed", "canceled"):
                     # Send final progress
                     progress = _build_progress(record)
                     yield {
@@ -589,3 +591,21 @@ async def delete_analysis(
 
     await db.delete_analysis(analysis_id)
     logger.info("Deleted analysis %s", analysis_id)
+
+
+@router.post("/analyze/{analysis_id}/cancel", status_code=204)
+async def cancel_analysis(
+    analysis_id: str,
+    db: ConvexDB = Depends(get_db),
+):
+    """Cancel a running analysis."""
+    record = await db.get_analysis(analysis_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    if record.get("status") in ("completed", "failed", "canceled"):
+        # Already in a terminal state, nothing to do
+        return
+
+    await db.update_analysis(analysis_id, status="canceled")
+    logger.info("Cancelled analysis %s", analysis_id)

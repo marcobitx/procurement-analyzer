@@ -4,7 +4,7 @@
 // Related: api.ts (streamChat, getChatHistory), ResultsView.tsx
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Loader2, MessageSquare, Bot, User, Sparkles } from 'lucide-react';
+import { X, Send, Loader2, MessageSquare, Bot, User, Cpu } from 'lucide-react';
 import { streamChat, getChatHistory, type ChatMessage } from '../lib/api';
 
 interface Props {
@@ -70,8 +70,8 @@ export default function ChatPanel({ analysisId, onClose }: Props) {
 
   return (
     <div className="fixed inset-y-0 right-0 w-full max-w-md z-50 flex flex-col
-                    bg-surface-900/97 backdrop-blur-2xl border-l border-white/[0.05]
-                    shadow-[-8px_0_40px_rgba(0,0,0,0.4)] animate-slide-in-right">
+                    bg-surface-950/98 backdrop-blur-3xl border-l border-white/[0.05]
+                    shadow-[-12px_0_60px_rgba(0,0,0,0.5)] animate-slide-in-right">
 
       {/* ── Header ────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-5 h-14 border-b border-white/[0.04] flex-shrink-0">
@@ -94,8 +94,8 @@ export default function ChatPanel({ analysisId, onClose }: Props) {
         {/* Empty state */}
         {messages.length === 0 && !streaming && (
           <div className="text-center py-10 animate-fade-in">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-brand-500/8 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-brand-400" />
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-surface-800 flex items-center justify-center border border-white/[0.04]">
+              <Cpu className="w-5 h-5 text-brand-400" />
             </div>
             <p className="text-[14px] font-semibold text-surface-300 mb-1">AI Asistentas</p>
             <p className="text-[12px] text-surface-500 mb-6">
@@ -127,17 +127,16 @@ export default function ChatPanel({ analysisId, onClose }: Props) {
               </div>
             )}
             <div
-              className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
-                msg.role === 'user'
-                  ? 'bg-accent-500/12 text-surface-100 rounded-br-md'
-                  : 'bg-surface-800/40 text-surface-200 rounded-bl-md border border-white/[0.03]'
-              }`}
+              className={`max-w-[85%] px-4 py-3 rounded-xl text-[13px] leading-relaxed ${msg.role === 'user'
+                  ? 'bg-brand-500/10 text-white border border-brand-500/20'
+                  : 'bg-surface-800/60 text-surface-200 border border-white/[0.04]'
+                }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
             </div>
             {msg.role === 'user' && (
-              <div className="w-6 h-6 rounded-lg bg-accent-500/12 flex items-center justify-center flex-shrink-0 mt-1">
-                <User className="w-3 h-3 text-accent-400" />
+              <div className="w-6 h-6 rounded-lg bg-brand-500/5 flex items-center justify-center flex-shrink-0 mt-1 border border-brand-500/10">
+                <User className="w-3 h-3 text-brand-400" />
               </div>
             )}
           </div>
@@ -149,9 +148,9 @@ export default function ChatPanel({ analysisId, onClose }: Props) {
             <div className="w-6 h-6 rounded-lg bg-brand-500/12 flex items-center justify-center flex-shrink-0 mt-1">
               <Bot className="w-3 h-3 text-brand-400" />
             </div>
-            <div className="max-w-[82%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-surface-800/40 text-[13px] text-surface-200 border border-white/[0.03]">
+            <div className="max-w-[85%] px-4 py-3 rounded-xl bg-surface-800/60 text-[13px] text-surface-200 border border-white/[0.04]">
               <p className="whitespace-pre-wrap">{currentChunks}</p>
-              <span className="inline-block w-[2px] h-4 bg-brand-400 animate-pulse ml-0.5 align-text-bottom" />
+              <span className="inline-block w-[2px] h-4 bg-brand-400 animate-pulse ml-1 align-text-bottom" />
             </div>
           </div>
         )}
@@ -187,7 +186,7 @@ export default function ChatPanel({ analysisId, onClose }: Props) {
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || streaming}
-            className="btn-primary px-3.5"
+            className="btn-professional px-4"
           >
             <Send className="w-4 h-4" />
           </button>

@@ -5,7 +5,7 @@
 // Related: RightPanel.tsx, store.ts
 
 import { useState, useRef, useCallback } from 'react';
-import { Upload, Zap, FileText, Sparkles } from 'lucide-react';
+import { Upload, Cpu, FileText, ShieldCheck, History } from 'lucide-react';
 import { appStore, useStore } from '../lib/store';
 
 const ACCEPTED = '.pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.zip';
@@ -38,26 +38,22 @@ export default function UploadView() {
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in-up">
-      {/* ── Hero ──────────────────────────────────────────────── */}
-      <div className="text-center mb-10 pt-4 md:pt-8">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/8 border border-brand-500/12 mb-5">
-          <Zap className="w-3.5 h-3.5 text-brand-400" />
-          <span className="text-[12px] font-semibold text-brand-300 tracking-tight">
-            AI dokumentų analizė
+      {/* ── Page Header — Functional & Enterprise ────────────────── */}
+      <div className="text-center mb-12 pt-4 md:pt-8">
+        <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-brand-500/5 border border-brand-500/10 mb-6 transition-all duration-300">
+          <Cpu className="w-3.5 h-3.5 text-brand-400" />
+          <span className="text-[10px] font-bold text-brand-300 tracking-[0.2em] uppercase">
+            Sistemos statusas: Pro AI aktyvus
           </span>
         </div>
 
-        <h1 className="text-3xl md:text-4xl font-extrabold text-surface-50 tracking-tighter leading-[1.1] mb-3">
-          Viešųjų pirkimų
-          <br />
-          <span className="bg-gradient-to-r from-accent-400 to-accent-600 bg-clip-text text-transparent">
-            analizatorius
-          </span>
+        <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tighter leading-tight mb-4">
+          Intelektuali viešųjų pirkimų <span className="text-brand-400">analizė</span>
         </h1>
 
-        <p className="text-surface-400 text-[15px] leading-relaxed max-w-md mx-auto">
-          Įkelkite pirkimo dokumentus — AI sistema juos išanalizuos
-          ir pateiks struktūrizuotą ataskaitą per kelias minutes.
+        <p className="text-surface-400 text-[14px] leading-relaxed max-w-lg mx-auto font-medium">
+          Automatizuotas dokumentų vertinimas, rizikų nustatymas ir
+          metrikų generavimas naudojant Claude Sonnet Enterprise modelį.
         </p>
       </div>
 
@@ -67,30 +63,17 @@ export default function UploadView() {
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={`relative rounded-2xl cursor-pointer transition-all duration-300 ease-out-expo ${
-          dragOver ? 'scale-[1.01]' : ''
-        }`}
-      >
-        {/* Animated gradient border */}
-        <div
-          className={`absolute inset-0 rounded-2xl transition-opacity duration-300 ${
-            dragOver ? 'opacity-100' : 'opacity-0'
+        className={`relative group cursor-pointer transition-all duration-300 ${dragOver ? 'scale-[1.005]' : ''
           }`}
-          style={{
-            padding: '1.5px',
-            background: 'linear-gradient(135deg, #84cc16, #f4a261, #84cc16)',
-            backgroundSize: '200% 200%',
-            animation: 'borderFlow 2s linear infinite',
-            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-          }}
-        />
+      >
+        <div className={`absolute inset-0 rounded-2xl border-2 border-dashed transition-all duration-300 ${dragOver
+          ? 'border-brand-500/40 bg-brand-500/5'
+          : 'border-white/[0.04] bg-surface-900/60'
+          }`} />
 
         <div
-          className={`glass-card p-10 md:p-14 text-center transition-colors duration-300 ${
-            dragOver ? 'bg-brand-500/5' : ''
-          }`}
+          className={`relative p-12 md:p-16 text-center transition-all duration-300 ${dragOver ? 'translate-y-[-2px]' : ''
+            }`}
         >
           <input
             ref={inputRef}
@@ -102,16 +85,14 @@ export default function UploadView() {
           />
 
           <div
-            className={`w-14 h-14 mx-auto mb-5 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-              dragOver
-                ? 'bg-brand-500/15 scale-110'
-                : 'bg-surface-700/40'
-            }`}
+            className={`w-14 h-14 mx-auto mb-6 rounded-2xl flex items-center justify-center border transition-all duration-300 ${dragOver
+              ? 'bg-brand-500/10 border-brand-500/30'
+              : 'bg-surface-800 border-white/[0.04]'
+              }`}
           >
             <Upload
-              className={`w-6 h-6 transition-colors duration-300 ${
-                dragOver ? 'text-brand-400' : 'text-surface-500'
-              }`}
+              className={`w-6 h-6 transition-colors duration-300 ${dragOver ? 'text-brand-400' : 'text-surface-400'
+                }`}
             />
           </div>
 
@@ -124,36 +105,35 @@ export default function UploadView() {
         </div>
       </div>
 
-      {/* ── File count indicator (files managed in RightPanel) ── */}
+      {/* ── File count indicator ── */}
       {state.files.length > 0 && (
-        <div className="mt-5 text-center animate-fade-in">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-500/8 border border-accent-500/12">
-            <FileText className="w-3.5 h-3.5 text-accent-400" />
-            <span className="text-[13px] font-semibold text-accent-300">
+        <div className="mt-8 text-center animate-fade-in">
+          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-brand-500/5 border border-brand-500/10">
+            <FileText className="w-3.5 h-3.5 text-brand-400" />
+            <span className="text-[12px] font-bold text-brand-100">
               {state.files.length} {state.files.length === 1 ? 'failas paruoštas' : state.files.length < 10 ? 'failai paruošti' : 'failų paruošta'}
-            </span>
-            <span className="text-[12px] text-surface-500 hidden lg:inline">
-              · žr. dešinėje →
             </span>
           </div>
         </div>
       )}
 
       {/* ── Features row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4 mt-10">
+      <div className="grid grid-cols-3 gap-6 mt-20">
         {[
-          { icon: Sparkles, label: 'AI analizė', desc: 'Claude Sonnet 4' },
-          { icon: FileText, label: 'Struktūrizuota', desc: 'Pilna ataskaita' },
-          { icon: Zap, label: 'Greita', desc: '2-5 minutės' },
+          { icon: Cpu, label: 'AI Variklis', desc: 'Sonnet Enterprise' },
+          { icon: ShieldCheck, label: 'Saugi sistema', desc: 'Duomenų šifravimas' },
+          { icon: History, label: 'Atsekamumas', desc: 'Pilnas žurnalas' },
         ].map(({ icon: Icon, label, desc }, i) => (
           <div
             key={label}
-            className="text-center py-4 px-3 rounded-xl bg-surface-800/15 border border-white/[0.03] animate-stagger"
-            style={{ animationDelay: `${300 + i * 100}ms` }}
+            className="enterprise-card py-6 px-4 text-center animate-stagger"
+            style={{ animationDelay: `${300 + i * 150}ms` }}
           >
-            <Icon className="w-4 h-4 text-brand-400 mx-auto mb-2" />
-            <p className="text-[12px] font-semibold text-surface-300 mb-0.5">{label}</p>
-            <p className="text-[10px] text-surface-500">{desc}</p>
+            <div className="w-10 h-10 mx-auto mb-4 rounded-xl bg-surface-800 flex items-center justify-center border border-white/[0.04]">
+              <Icon className="w-5 h-5 text-brand-400" />
+            </div>
+            <p className="text-[13px] font-bold text-surface-200 mb-1">{label}</p>
+            <p className="text-[11px] text-surface-500 font-medium">{desc}</p>
           </div>
         ))}
       </div>

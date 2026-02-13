@@ -30,12 +30,31 @@ _converter = None
 
 
 def _get_converter():
-    """Lazily initialize and cache the Docling DocumentConverter."""
+    """Lazily initialize and cache the Docling DocumentConverter.
+
+    Configured with do_ocr=False for PDF/image pipelines to avoid loading
+    heavy RapidOCR models (~10s per init). Procurement documents are
+    text-based PDFs — OCR is not needed.
+    """
     global _converter
     if _converter is None:
-        from docling.document_converter import DocumentConverter
+        from docling.datamodel.base_models import InputFormat
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import (
+            DocumentConverter,
+            ImageFormatOption,
+            PdfFormatOption,
+        )
 
-        _converter = DocumentConverter()
+        # Disable OCR to skip RapidOCR model loading
+        pdf_opts = PdfPipelineOptions(do_ocr=False)
+
+        _converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts),
+                InputFormat.IMAGE: ImageFormatOption(pipeline_options=pdf_opts),
+            }
+        )
     return _converter
 
 

@@ -15,7 +15,16 @@ Vertink pagal šiuos kriterijus:
 5. Ar evaluation_criteria svoriai sudaro 100%?
 
 completeness_score: 1.0 = viskas puikiai užpildyta, 0.0 = nieko nėra.
-Būk griežtas — 0.8+ reiškia labai gerą ataskaitą."""
+Būk griežtas — 0.8+ reiškia labai gerą ataskaitą.
+
+SVARBU: Atsakyk TIK grynu JSON formatu. Jokio markdown, jokio papildomo teksto.
+JSON schema:
+{
+  "completeness_score": <float 0.0-1.0>,
+  "missing_fields": ["<laukas1>", "<laukas2>"],
+  "conflicts": ["<prieštaravimas1>"],
+  "suggestions": ["<pasiūlymas1>"]
+}"""
 
 EVALUATION_USER = """\
 Galutinė ataskaita:
@@ -24,4 +33,4 @@ Galutinė ataskaita:
 Analizuotų dokumentų sąrašas:
 {document_list}
 
-Įvertink ataskaitos kokybę pagal nurodytą JSON schemą."""
+Atlik kokybės auditą ir pateik rezultatą TIKTAI kaip JSON objektą (be markdown, be paaiškinimų)."""

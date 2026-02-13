@@ -13,8 +13,10 @@ Taisyklės:
 - Sumas rašyk skaičiais (ne žodžiais), valiutą nurodyk atskirai
 - Datas formatuok ISO 8601 (YYYY-MM-DD)
 - Jei matai neaiškumą ar galimą prieštaravimą, aprašyk confidence_notes lauke
+- confidence_notes VISADA turi būti masyvas/list, pvz: ["pastaba1", "pastaba2"] arba []
 - Visą tekstą rašyk lietuvių kalba
-- Neišgalvok informacijos — tik tai, kas yra dokumente"""
+- Neišgalvok informacijos — tik tai, kas yra dokumente
+- Atsakyk TIK JSON formatu — be markdown, be papildomo teksto"""
 
 EXTRACTION_USER = """\
 Analizuojamas dokumentas:

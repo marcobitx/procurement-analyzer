@@ -78,14 +78,22 @@ class AnalysisPipeline:
 
         try:
             # Step 0: Unpack ZIPs → flat file list
+            await self._check_cancellation()
             await self._update_status(AnalysisStatus.UNPACKING)
             file_list = await extract_files(upload_paths)
             self.metrics.total_files = len(file_list)
 
             if not file_list:
-                raise ValueError("No supported files found in uploads")
+                upload_names = [p.name for p in upload_paths]
+                raise ValueError(
+                    f"No supported files found in uploads. "
+                    f"Uploaded files: {upload_names}. "
+                    f"This may be caused by corrupt archives or unsupported file formats. "
+                    f"Supported formats: PDF, DOCX, XLSX, PPTX, PNG, TIFF, JPG, ZIP, 7z."
+                )
 
             # Step 1: Parse all documents
+            await self._check_cancellation()
             await self._update_status(AnalysisStatus.PARSING)
             parsed_docs = await parse_all(
                 file_list,
@@ -104,6 +112,7 @@ class AnalysisPipeline:
                 )
 
             # Step 2: Extract per-document (parallel with concurrency limit)
+            await self._check_cancellation()
             await self._update_status(AnalysisStatus.EXTRACTING)
             extractions = await extract_all(
                 docs=parsed_docs,
@@ -119,6 +128,7 @@ class AnalysisPipeline:
                 self.metrics.tokens_extraction_output += usage.get("output_tokens", 0)
 
             # Step 3: Aggregate all extractions into one report
+            await self._check_cancellation()
             await self._update_status(AnalysisStatus.AGGREGATING)
             await self._emit_event("aggregation_started", {})
             report, agg_usage = await aggregate_results(
@@ -129,6 +139,7 @@ class AnalysisPipeline:
             await self._emit_event("aggregation_completed", agg_usage)
 
             # Step 4: Evaluate report quality
+            await self._check_cancellation()
             await self._update_status(AnalysisStatus.EVALUATING)
             await self._emit_event("evaluation_started", {})
             source_docs = [
@@ -158,10 +169,16 @@ class AnalysisPipeline:
 
             await self._emit_event("metrics_update", self.metrics.to_dict())
 
+        except asyncio.CancelledError:
+            logger.info("Pipeline cancelled for %s", self.analysis_id)
+            # Status is already updated to CANCELED by API or _check_cancellation
+            return
+
         except Exception as e:
             logger.error(
                 "Pipeline failed for %s: %s", self.analysis_id, e, exc_info=True
             )
+
             self.metrics.elapsed_seconds = time.time() - self.metrics.start_time
             await self.db.update_analysis(
                 self.analysis_id,
@@ -187,6 +204,13 @@ class AnalysisPipeline:
         }
         self._event_index += 1
         await self.db.append_event(self.analysis_id, event)
+
+    async def _check_cancellation(self):
+        """Check if analysis has been canceled in the DB."""
+        # We need to fetch the latest status from DB
+        record = await self.db.get_analysis(self.analysis_id)
+        if record and record.get("status") == AnalysisStatus.CANCELED:
+            raise asyncio.CancelledError("Analysis canceled by user")
 
     # ── Sync callbacks (bridge to async event emission) ────────────────────
     #

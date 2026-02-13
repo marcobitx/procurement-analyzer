@@ -25,6 +25,13 @@ THINKING_BUDGETS = {
 MAX_RETRIES = 3
 BACKOFF_SECONDS = [2, 4, 8]
 
+MANDATORY_MODELS = {
+    "moonshotai/kimi-k2.5",
+    "z-ai/glm-5",
+    "google/gemini-3-flash-preview",
+    "openai/gpt-oss-120b",
+}
+
 
 class LLMError(Exception):
     """Base exception for LLM client errors."""
@@ -65,6 +72,60 @@ def _extract_usage(data: dict) -> dict:
         "input_tokens": usage.get("prompt_tokens", 0),
         "output_tokens": usage.get("completion_tokens", 0),
     }
+
+
+def _extract_json(raw: str) -> str:
+    """
+    Robustly extract JSON from LLM output that may contain:
+    - Markdown code fences (```json ... ```)
+    - Trailing explanatory text after the JSON
+    - Leading text before the JSON
+    """
+    text = raw.strip()
+
+    # Strip markdown code fences
+    if text.startswith("```"):
+        first_nl = text.index("\n") if "\n" in text else len(text)
+        text = text[first_nl + 1:]
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3].rstrip()
+        logger.debug("Stripped markdown code fences from structured output")
+
+    # Find the JSON object: first { to its matching }
+    start = text.find("{")
+    if start == -1:
+        return text  # no object found, return as-is and let validation handle it
+
+    depth = 0
+    in_string = False
+    escape = False
+    end = start
+
+    for i in range(start, len(text)):
+        c = text[i]
+        if escape:
+            escape = False
+            continue
+        if c == "\\":
+            escape = True
+            continue
+        if c == '"' and not escape:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+
+    result = text[start:end + 1]
+    if result != text.strip():
+        logger.debug("Extracted JSON object (%d chars) from larger output (%d chars)", len(result), len(text))
+    return result
 
 
 def _clean_json_schema(schema: dict) -> dict:
@@ -214,6 +275,7 @@ class LLMClient:
         Usage dict: {"input_tokens": int, "output_tokens": int}
 
         Retries: 3 attempts on 429/5xx with exponential backoff (2s, 4s, 8s).
+        On parse failure: one automatic retry asking the LLM to correct its output.
         """
         raw_schema = response_schema.model_json_schema()
         cleaned_schema = _clean_json_schema(raw_schema)
@@ -257,17 +319,109 @@ class LLMClient:
                 f"No content in response: {json.dumps(data)[:300]}"
             ) from exc
 
+        # Robust JSON extraction — handles markdown fences, trailing text, etc.
+        content_clean = _extract_json(content)
+
         # Parse JSON content into the schema
         try:
-            parsed = response_schema.model_validate_json(content)
-        except Exception as exc:
-            raise LLMParseError(
-                f"Failed to parse structured output: {exc}\nContent: {content[:500]}"
-            ) from exc
+            parsed = response_schema.model_validate_json(content_clean)
+        except Exception as first_exc:
+            # Retry: ask the LLM to convert its non-JSON response to valid JSON
+            logger.warning(
+                "First parse attempt failed for %s, retrying with correction prompt: %s",
+                response_schema.__name__,
+                str(first_exc)[:200],
+            )
+            parsed, correction_usage = await self._retry_with_correction(
+                original_content=content,
+                response_schema=response_schema,
+                cleaned_schema=cleaned_schema,
+                model=model,
+                first_exc=first_exc,
+            )
+            # Merge usage from both attempts
+            usage = _extract_usage(data)
+            usage["input_tokens"] += correction_usage.get("input_tokens", 0)
+            usage["output_tokens"] += correction_usage.get("output_tokens", 0)
+            return parsed, usage
 
         usage = _extract_usage(data)
         logger.debug("Usage: %s", usage)
 
+        return parsed, usage
+
+    async def _retry_with_correction(
+        self,
+        original_content: str,
+        response_schema: type[BaseModel],
+        cleaned_schema: dict,
+        model: str | None,
+        first_exc: Exception,
+    ) -> tuple[BaseModel, dict]:
+        """Retry by asking the LLM to convert invalid output to valid JSON."""
+        schema_json = json.dumps(cleaned_schema, indent=2, ensure_ascii=False)
+
+        correction_messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Ankstesnis atsakymas nebuvo validus JSON. "
+                    "Konvertuok žemiau pateiktą turinį į griežtai validų JSON objektą, "
+                    "kuris atitinka nurodytą schemą. "
+                    "Atsakyk TIK JSON — be markdown, be paaiškinimų, be papildomo teksto."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Turinys, kurį reikia konvertuoti į JSON:\n\n"
+                    f"{original_content[:3000]}\n\n"
+                    f"Reikalinga JSON schema:\n{schema_json}\n\n"
+                    f"Pateik TIK validų JSON objektą."
+                ),
+            },
+        ]
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": response_schema.__name__,
+                "schema": cleaned_schema,
+            },
+        }
+
+        body = self._build_body(
+            messages=correction_messages,
+            model=model,
+            thinking="off",
+            temperature=0.0,
+            response_format=response_format,
+        )
+
+        response = await self._request_with_retry("POST", "/chat/completions", json=body)
+        data = response.json()
+
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError) as exc:
+            raise LLMParseError(
+                f"No content in correction response: {json.dumps(data)[:300]}"
+            ) from exc
+
+        content_clean = _extract_json(content)
+
+        try:
+            parsed = response_schema.model_validate_json(content_clean)
+        except Exception as exc:
+            raise LLMParseError(
+                f"Failed to parse structured output after correction retry: {exc}\n"
+                f"Content: {content_clean[:500]}"
+            ) from exc
+
+        usage = _extract_usage(data)
+        logger.info(
+            "Correction retry succeeded for %s", response_schema.__name__
+        )
         return parsed, usage
 
     async def complete_text(
@@ -376,9 +530,12 @@ class LLMClient:
         result: list[dict] = []
 
         for m in models_raw:
-            # Filter: only models that support structured output
+            model_id = m.get("id", "")
+            # Filter: only models that support structured output OR are in our mandatory list
             supported_params = m.get("supported_parameters", [])
-            if supported_params and "json_schema" not in supported_params:
+            supports_json = supported_params and "json_schema" in supported_params
+            
+            if not supports_json and model_id not in MANDATORY_MODELS:
                 continue
 
             pricing = m.get("pricing", {})
@@ -390,14 +547,42 @@ class LLMClient:
                 completion_price = 0.0
 
             result.append({
-                "id": m.get("id", ""),
-                "name": m.get("name", m.get("id", "")),
+                "id": model_id,
+                "name": m.get("name", model_id),
                 "context_length": m.get("context_length", 0),
                 "pricing_prompt": prompt_price,
                 "pricing_completion": completion_price,
             })
 
-        logger.debug("Found %d models supporting structured output", len(result))
+        # Ensure all mandatory models are present (fallback if not in OpenRouter list yet)
+        existing_ids = {r["id"] for r in result}
+        for mid in MANDATORY_MODELS:
+            if mid not in existing_ids:
+                name_map = {
+                    "moonshotai/kimi-k2.5": "Kimi 2.5",
+                    "z-ai/glm-5": "GLM-5",
+                    "google/gemini-3-flash-preview": "Gemini 3 Flash",
+                    "openai/gpt-oss-120b": "GPT-OSS 120",
+                }
+                pricing_map = {
+                    "moonshotai/kimi-k2.5": (0.45, 2.25),
+                    "z-ai/glm-5": (0.80, 2.56),
+                    "google/gemini-3-flash-preview": (0.50, 3.00),
+                    "openai/gpt-oss-120b": (0.04, 0.19),
+                }
+                in_p, out_p = pricing_map.get(mid, (0.0, 0.0))
+                result.append({
+                    "id": mid,
+                    "name": name_map.get(mid, mid.split("/")[-1]),
+                    "context_length": 128000,
+                    "pricing_prompt": in_p,
+                    "pricing_completion": out_p,
+                })
+
+        # Sort: Mandatory first, then by name
+        result.sort(key=lambda x: (x["id"] not in MANDATORY_MODELS, x["name"]))
+
+        logger.debug("Found %d models (including mandatory check)", len(result))
         return result
 
     async def close(self):

@@ -21,4 +21,4 @@ Iš viso analizuoti {doc_count} dokumentai.
 
 {per_doc_results}
 
-Sujunk į vieną galutinę ataskaitą pagal nurodytą JSON schemą."""
+Sujunk į vieną galutinę ataskaitą. Atsakyk TIK JSON formatu pagal nurodytą schemą (be markdown, be paaiškinimų)."""

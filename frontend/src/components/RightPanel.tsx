@@ -10,17 +10,19 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Upload,
   X,
-  Zap,
-  Loader2,
-  FileText,
-  Archive,
-  Image,
-  Table2,
   Clock,
   AlertTriangle,
   MessageSquare,
   Lightbulb,
-  Sparkles,
+  Cpu,
+  ShieldCheck,
+  FileText,
+  Loader2,
+  Archive,
+  Image,
+  Table2,
+  ChevronRight,
+  Zap,
 } from 'lucide-react';
 import { appStore, useStore, type AppView } from '../lib/store';
 import { createAnalysis, getAnalysis, type Analysis } from '../lib/api';
@@ -33,13 +35,13 @@ const MAX_SIZE_MB = 50;
 
 const FILE_ICONS: Record<string, { icon: any; color: string }> = {
   pdf: { icon: FileText, color: 'text-red-400' },
-  docx: { icon: FileText, color: 'text-blue-400' },
+  docx: { icon: FileText, color: 'text-brand-400' },
   xlsx: { icon: Table2, color: 'text-emerald-400' },
-  pptx: { icon: FileText, color: 'text-orange-400' },
-  zip: { icon: Archive, color: 'text-amber-400' },
-  png: { icon: Image, color: 'text-violet-400' },
-  jpg: { icon: Image, color: 'text-violet-400' },
-  jpeg: { icon: Image, color: 'text-violet-400' },
+  pptx: { icon: FileText, color: 'text-accent-400' },
+  zip: { icon: Archive, color: 'text-brand-300' },
+  png: { icon: Image, color: 'text-accent-300' },
+  jpg: { icon: Image, color: 'text-accent-300' },
+  jpeg: { icon: Image, color: 'text-accent-300' },
 };
 
 function getFileInfo(name: string) {
@@ -68,12 +70,71 @@ interface Props {
 
 export default function RightPanel({ currentView, analysisId }: Props) {
   return (
-    <aside className="hidden lg:flex flex-col w-[320px] h-full bg-transparent border-l border-white/[0.04] flex-shrink-0">
-      {currentView === 'upload' && <UploadPanel />}
-      {currentView === 'analyzing' && <AnalyzingPanel />}
-      {currentView === 'results' && analysisId && <ResultsPanel analysisId={analysisId} />}
-      {(currentView === 'history' || currentView === 'settings') && <TipsPanel view={currentView} />}
+    <aside className="hidden lg:flex flex-col w-[320px] h-full bg-transparent border-l border-white/[0.04] flex-shrink-0 overflow-y-auto scrollbar-hide">
+      <div className="p-3 space-y-3">
+        <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] overflow-hidden shadow-lg shadow-black/20">
+          {currentView === 'upload' && <UploadPanel />}
+          {currentView === 'analyzing' && <AnalyzingPanel />}
+          {currentView === 'results' && analysisId && <ResultsPanel analysisId={analysisId} />}
+          {(currentView === 'history' || currentView === 'settings') && <TipsPanel view={currentView} />}
+        </div>
+
+        <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] overflow-hidden shadow-lg shadow-black/20">
+          <SectionModelSelector />
+        </div>
+      </div>
     </aside>
+  );
+}
+
+function SectionModelSelector() {
+  const state = useStore(appStore);
+  const m = state.selectedModel;
+
+  return (
+    <div className="p-4 bg-transparent">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[11px] font-bold text-surface-500 uppercase tracking-widest">Modelis</h3>
+        <button
+          onClick={() => appStore.setState({ modelPanelOpen: true })}
+          className="text-[10px] text-brand-400 hover:text-brand-300 font-bold uppercase tracking-tight transition-colors flex items-center gap-1 group"
+        >
+          Keisti
+          <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      </div>
+
+      <button
+        onClick={() => appStore.setState({ modelPanelOpen: true })}
+        className="w-full text-left p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all group"
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+            <Zap className="w-4 h-4 text-brand-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold text-white truncate leading-tight group-hover:text-brand-400 transition-colors">
+              {m ? m.name : 'Nepasirinkta'}
+            </p>
+            {m && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                <span className="text-[10px] font-mono font-bold text-brand-400 bg-brand-500/5 px-1.5 py-0.5 rounded border border-brand-500/10">
+                  {Math.round(m.context_length / 1000)}k ctx
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-surface-600 uppercase font-bold tracking-tighter">In:</span>
+                  <span className="text-[10px] font-mono text-surface-400">${m.pricing_prompt.toFixed(2)}/1M</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-surface-600 uppercase font-bold tracking-tighter">Out:</span>
+                  <span className="text-[10px] font-mono text-surface-400">${m.pricing_completion.toFixed(2)}/1M</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </button>
+    </div>
   );
 }
 
@@ -122,7 +183,8 @@ function UploadPanel() {
     appStore.setState({ uploading: true });
     setError(null);
     try {
-      const result = await createAnalysis(files);
+      const selectedModelId = appStore.getState().selectedModel?.id;
+      const result = await createAnalysis(files, selectedModelId);
       appStore.setState({
         view: 'analyzing',
         currentAnalysisId: result.id,
@@ -137,9 +199,9 @@ function UploadPanel() {
 
   return (
     <>
-      {/* Header */}
+      {/* Header — inline with highlight */}
       <div className="px-5 h-12 flex items-center border-b border-white/[0.04]">
-        <h3 className="text-[13px] font-bold text-surface-200 tracking-tight">Dokumentai</h3>
+        <h3 className="text-[11px] font-bold text-surface-400 tracking-widest uppercase">Dokumentai</h3>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -149,11 +211,10 @@ function UploadPanel() {
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
-          className={`rounded-xl border-2 border-dashed cursor-pointer p-6 text-center transition-all duration-200 ${
-            dragOver
-              ? 'border-accent-400/40 bg-accent-500/5'
-              : 'border-white/[0.06] hover:border-white/[0.12] hover:bg-surface-800/20'
-          }`}
+          className={`rounded-xl border-2 border-dashed cursor-pointer p-6 text-center transition-all duration-200 ${dragOver
+            ? 'border-brand-500/50 bg-brand-500/5'
+            : 'border-white/[0.04] hover:border-white/[0.1] hover:bg-white/[0.02]'
+            }`}
         >
           <input
             ref={inputRef}
@@ -163,7 +224,7 @@ function UploadPanel() {
             onChange={(e) => e.target.files && addFiles(e.target.files)}
             className="hidden"
           />
-          <Upload className={`w-5 h-5 mx-auto mb-2 transition-colors ${dragOver ? 'text-accent-400' : 'text-surface-500'}`} />
+          <Upload className={`w-6 h-6 mx-auto mb-3 transition-all duration-300 ${dragOver ? 'text-brand-400 scale-110' : 'text-surface-500'}`} />
           <p className="text-[12px] text-surface-400 font-medium">
             {dragOver ? 'Paleiskite čia' : 'Nutempkite arba paspauskite'}
           </p>
@@ -176,8 +237,8 @@ function UploadPanel() {
         {state.files.length > 0 && (
           <div className="animate-fade-in">
             <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[12px] font-semibold text-surface-400">
-                {state.files.length} {state.files.length === 1 ? 'failas' : state.files.length < 10 ? 'failai' : 'failų'}
+              <span className="text-[11px] font-bold text-surface-500 uppercase tracking-widest">
+                Eilė ({state.files.length})
               </span>
               <button
                 onClick={() => appStore.setState({ files: [] })}
@@ -194,8 +255,8 @@ function UploadPanel() {
                 return (
                   <div
                     key={f.name}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-surface-800/30 border border-white/[0.04]
-                               hover:bg-surface-800/50 transition-colors duration-200 animate-stagger"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-900/40 border border-white/[0.04]
+                               hover:border-brand-500/20 transition-all duration-200 animate-stagger"
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
                     <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${info.color}`} />
@@ -230,7 +291,7 @@ function UploadPanel() {
           <button
             onClick={handleSubmit}
             disabled={state.uploading}
-            className="btn-primary w-full flex items-center justify-center gap-2.5 py-2.5 text-[13px]"
+            className="btn-professional w-full py-2.5 text-[13px]"
           >
             {state.uploading ? (
               <>
@@ -239,8 +300,8 @@ function UploadPanel() {
               </>
             ) : (
               <>
-                <Zap className="w-4 h-4" />
-                <span>Pradėti analizę</span>
+                <Cpu className="w-4 h-4" />
+                <span>Vykdyti analizę</span>
               </>
             )}
           </button>
@@ -266,17 +327,17 @@ function AnalyzingPanel() {
 
   return (
     <>
-      <div className="px-5 h-12 flex items-center border-b border-white/[0.04]">
-        <h3 className="text-[13px] font-bold text-surface-200 tracking-tight">Analizė</h3>
+      <div className="px-6 h-16 flex items-center border-b border-white/[0.04] bg-surface-950/20 backdrop-blur-md">
+        <h3 className="text-[13px] font-bold text-surface-400 tracking-wider uppercase">Analizė</h3>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 animate-fade-in">
         {/* Elapsed timer */}
-        <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-brand-500/6 border border-brand-500/10">
+        <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-brand-500/5 border border-brand-500/10">
           <Clock className="w-4 h-4 text-brand-400" />
           <div>
-            <p className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">Laikas</p>
-            <span className="text-[14px] font-mono font-semibold text-brand-300">{formatTime(elapsed)}</span>
+            <p className="text-[9px] text-surface-500 font-bold uppercase tracking-widest">Analizės laikas</p>
+            <span className="text-[14px] font-mono font-bold text-white leading-none">{formatTime(elapsed)}</span>
           </div>
         </div>
 
@@ -291,11 +352,11 @@ function AnalyzingPanel() {
                 const info = getFileInfo(f.name);
                 const FileIcon = info.icon;
                 return (
-                  <div key={f.name} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-surface-800/20 border border-white/[0.03]">
-                    <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${info.color}`} />
+                  <div key={f.name} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-950/40 border border-white/[0.04]">
+                    <FileIcon className={`w-4 h-4 flex-shrink-0 ${info.color}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-surface-300 font-medium truncate">{f.name}</p>
-                      <p className="text-[10px] text-surface-600 font-mono">{formatSize(f.size)}</p>
+                      <p className="text-[12px] text-surface-200 font-semibold truncate leading-tight">{f.name}</p>
+                      <p className="text-[10px] text-surface-600 font-mono mt-0.5 uppercase tracking-tighter">{formatSize(f.size)}</p>
                     </div>
                   </div>
                 );
@@ -305,10 +366,10 @@ function AnalyzingPanel() {
         )}
 
         {/* AI indicator */}
-        <div className="px-3.5 py-3 rounded-xl bg-surface-800/20 border border-white/[0.03]">
+        <div className="px-3.5 py-3 rounded-xl bg-surface-800/40 border border-white/[0.04]">
           <div className="flex items-center gap-2 mb-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-brand-400" />
-            <span className="text-[11px] font-semibold text-brand-300 tracking-tight">AI analizė vykdoma</span>
+            <Cpu className="w-3.5 h-3.5 text-brand-400" />
+            <span className="text-[11px] font-bold text-brand-300 uppercase tracking-widest">Vykdymas</span>
           </div>
           <p className="text-[10px] text-surface-500 leading-relaxed">
             Claude Sonnet 4 apdoroja jūsų dokumentus ir generuoja struktūrizuotą ataskaitą.
@@ -359,8 +420,8 @@ function ResultsPanel({ analysisId }: { analysisId: string }) {
 
   return (
     <>
-      <div className="px-5 h-12 flex items-center border-b border-white/[0.04]">
-        <h3 className="text-[13px] font-bold text-surface-200 tracking-tight">Įrankiai</h3>
+      <div className="px-6 h-16 flex items-center border-b border-white/[0.04] bg-surface-950/20 backdrop-blur-md">
+        <h3 className="text-[13px] font-bold text-surface-400 tracking-wider uppercase">Įrankiai</h3>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5 animate-fade-in">
@@ -403,22 +464,20 @@ function ResultsPanel({ analysisId }: { analysisId: string }) {
 
         {/* QA Score mini */}
         {qa && (
-          <div className="px-3.5 py-3 rounded-xl bg-surface-800/20 border border-white/[0.03]">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">Kokybės balas</span>
-              <span className={`text-[14px] font-bold font-mono ${
-                (qa.completeness_score ?? 0) >= 80 ? 'text-emerald-400' :
-                (qa.completeness_score ?? 0) >= 50 ? 'text-amber-400' : 'text-red-400'
-              }`}>
+          <div className="p-4 rounded-2xl bg-surface-950/40 border border-white/[0.05]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold text-surface-500 uppercase tracking-widest">Kokybės balas</span>
+              <span className={`text-[15px] font-black font-mono tracking-tighter ${(qa.completeness_score ?? 0) >= 80 ? 'text-emerald-400' :
+                (qa.completeness_score ?? 0) >= 50 ? 'text-accent-400' : 'text-red-400'
+                }`}>
                 {qa.completeness_score ?? 0}%
               </span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-surface-700/40 overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-surface-900 overflow-hidden border border-white/[0.03]">
               <div
-                className={`h-full rounded-full transition-all duration-1000 ${
-                  (qa.completeness_score ?? 0) >= 80 ? 'bg-emerald-500' :
-                  (qa.completeness_score ?? 0) >= 50 ? 'bg-amber-500' : 'bg-red-500'
-                }`}
+                className={`h-full rounded-full transition-all duration-1000 shadow-[0_0_12px_rgba(0,0,0,0.5)] ${(qa.completeness_score ?? 0) >= 80 ? 'bg-emerald-500' :
+                  (qa.completeness_score ?? 0) >= 50 ? 'bg-accent-500 shadow-glow-accent' : 'bg-red-500'
+                  }`}
                 style={{ width: `${Math.min(qa.completeness_score ?? 0, 100)}%` }}
               />
             </div>
@@ -430,10 +489,10 @@ function ResultsPanel({ analysisId }: { analysisId: string }) {
       <div className="p-4 border-t border-white/[0.04]">
         <button
           onClick={() => setChatOpen(true)}
-          className="btn-secondary w-full flex items-center justify-center gap-2.5 py-2.5 text-[13px]"
+          className="btn-secondary-professional w-full py-2.5 text-[13px]"
         >
           <MessageSquare className="w-4 h-4" />
-          Klausti AI
+          Klausti AI sistemos
         </button>
       </div>
 
@@ -448,31 +507,31 @@ function ResultsPanel({ analysisId }: { analysisId: string }) {
 function TipsPanel({ view }: { view: AppView }) {
   const tips = view === 'history'
     ? [
-        'Pasirinkite užbaigtą analizę norėdami peržiūrėti ataskaitą',
-        'Galite ištrinti nebereikalingas analizes',
-        'Kiekviena analizė saugoma su pilna ataskaita ir dokumentais',
-      ]
+      'Pasirinkite užbaigtą analizę norėdami peržiūrėti ataskaitą',
+      'Galite ištrinti nebereikalingas analizes',
+      'Kiekviena analizė saugoma su pilna ataskaita ir dokumentais',
+    ]
     : [
-        'Nustatykite OpenRouter API raktą prieš pradedant',
-        'Rekomenduojamas modelis: Claude Sonnet 4',
-        'API raktas saugomas tik jūsų serveryje',
-      ];
+      'Nustatykite OpenRouter API raktą prieš pradedant',
+      'Rekomenduojamas modelis: Claude Sonnet 4',
+      'API raktas saugomas tik jūsų serveryje',
+    ];
 
   return (
     <>
-      <div className="px-5 h-12 flex items-center border-b border-white/[0.04]">
-        <h3 className="text-[13px] font-bold text-surface-200 tracking-tight">Patarimai</h3>
+      <div className="px-6 h-16 flex items-center border-b border-white/[0.04] bg-surface-950/20 backdrop-blur-md">
+        <h3 className="text-[13px] font-bold text-surface-400 tracking-wider uppercase">Patarimai</h3>
       </div>
 
       <div className="flex-1 p-4 space-y-3 animate-fade-in">
         {tips.map((tip, i) => (
           <div
             key={i}
-            className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-surface-800/15 border border-white/[0.03] animate-stagger"
-            style={{ animationDelay: `${i * 80}ms` }}
+            className="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-surface-800/20 border border-white/[0.04] animate-stagger"
+            style={{ animationDelay: `${i * 100}ms` }}
           >
-            <Lightbulb className="w-3.5 h-3.5 text-accent-400/60 mt-0.5 flex-shrink-0" />
-            <span className="text-[12px] text-surface-400 leading-relaxed">{tip}</span>
+            <Lightbulb className="w-3.5 h-3.5 text-brand-400 mt-0.5 flex-shrink-0" />
+            <span className="text-[12px] text-surface-400 leading-relaxed font-medium">{tip}</span>
           </div>
         ))}
       </div>

@@ -29,17 +29,14 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
   return (
     <aside className="hidden lg:flex flex-col w-[60px] h-full bg-transparent border-r border-white/[0.04] flex-shrink-0">
       {/* ── Logo ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-center h-14 border-b border-white/[0.04]">
-        <div
-          className="w-8 h-8 rounded-[10px] bg-gradient-brand flex items-center justify-center
-                     shadow-[0_2px_8px_rgba(132,204,22,0.2)]"
-        >
-          <FlaskConical className="w-4 h-4 text-surface-950" />
+      <div className="flex items-center justify-center h-16 border-b border-white/[0.04]">
+        <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center shadow-sm">
+          <FlaskConical className="w-5 h-5 text-white" />
         </div>
       </div>
 
       {/* ── Navigation — vertically centered ─────────────────── */}
-      <nav className="flex-1 flex flex-col items-center gap-1.5 pt-6">
+      <nav className="flex-1 flex flex-col items-center gap-2 pt-8">
         {NAV_ITEMS.map(({ view, icon: Icon, label }) => {
           const active = activeNav === view;
 
@@ -49,20 +46,20 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
                 onClick={() => onNavigate(view)}
                 className={clsx(
                   'relative w-10 h-10 rounded-xl flex items-center justify-center',
-                  'transition-all duration-200 ease-out-expo',
+                  'transition-all duration-200',
                   active
-                    ? 'bg-brand-500/10'
-                    : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]',
+                    ? 'bg-brand-500/10 text-brand-400'
+                    : 'text-surface-500 hover:text-surface-200 hover:bg-white/[0.03]',
                 )}
               >
-                {/* Active indicator bar — lime green */}
+                {/* Active indicator bar — Sophisticated Indigo */}
                 {active && (
-                  <div className="absolute left-[-5px] top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-brand-400" />
+                  <div className="absolute left-[0px] top-1/2 -translate-y-1/2 w-[2px] h-6 rounded-r-full bg-brand-500" />
                 )}
 
                 <Icon
                   className={clsx(
-                    'w-[18px] h-[18px] transition-colors duration-200',
+                    'w-[20px] h-[20px] transition-all duration-300',
                     active ? 'text-brand-400' : '',
                   )}
                 />

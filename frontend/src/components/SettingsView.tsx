@@ -61,26 +61,26 @@ export default function SettingsView() {
 
   return (
     <div className="max-w-xl mx-auto animate-fade-in-up">
-      <div className="mb-7">
-        <h1 className="text-2xl font-extrabold text-surface-50 tracking-tighter">Nustatymai</h1>
-        <p className="text-[13px] text-surface-500 mt-1">Konfigūruokite API prieigą ir modelį</p>
+      <div className="mb-10">
+        <h1 className="text-3xl font-bold text-white tracking-tight">Nustatymai</h1>
+        <p className="text-[12px] text-surface-500 mt-1.5 font-bold uppercase tracking-widest">Konfigūruokite API prieigą ir modelį</p>
       </div>
 
       <div className="space-y-5">
         {/* ── API Key ─────────────────────────────────────────── */}
-        <div className="glass-card p-5">
-          <div className="flex items-start gap-3.5 mb-4">
-            <div className="w-9 h-9 rounded-xl bg-accent-500/10 flex items-center justify-center flex-shrink-0">
-              <Key className="w-4 h-4 text-accent-400" />
+        <div className="enterprise-card p-6">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-surface-800 flex items-center justify-center flex-shrink-0 border border-white/[0.04]">
+              <Key className="w-5 h-5 text-brand-400" />
             </div>
             <div>
-              <h3 className="text-[14px] font-bold text-surface-100 tracking-tight">
+              <h3 className="text-[15px] font-bold text-surface-100 tracking-tight">
                 OpenRouter API raktas
               </h3>
-              <p className="text-[12px] text-surface-500 mt-0.5">
+              <p className="text-[12px] text-surface-500 mt-0.5 font-medium">
                 {settings?.api_key_set
-                  ? <>Nustatytas: <span className="font-mono text-surface-400">{settings.api_key_preview}</span></>
-                  : 'Nenustatytas — reikalingas LLM funkcionalumui'}
+                  ? <>Aktyvus: <span className="font-mono text-brand-400/80">{settings.api_key_preview}</span></>
+                  : 'Nenustatytas — reikalingas sistemos veikimui'}
               </p>
             </div>
           </div>
@@ -102,25 +102,25 @@ export default function SettingsView() {
           </div>
 
           {!settings?.api_key_set && (
-            <div className="mt-3 flex items-start gap-2 text-[11px] text-amber-400/80">
-              <Shield className="w-3 h-3 mt-0.5 flex-shrink-0" />
-              <span>API raktas saugomas tik jūsų serveryje ir niekada neperduodamas tretiesiems</span>
+            <div className="mt-5 flex items-start gap-2.5 text-[12px] text-brand-400/80 bg-brand-500/5 p-3 rounded-xl border border-brand-500/10">
+              <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span className="font-medium">Jūsų API raktas yra saugus — jis naudojamas tik užklausoms į OpenRouter ir niekada neišsaugomas viešai</span>
             </div>
           )}
         </div>
 
         {/* ── Model Selection ────────────────────────────────── */}
-        <div className="glass-card p-5">
-          <div className="flex items-start gap-3.5 mb-4">
-            <div className="w-9 h-9 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
-              <Cpu className="w-4 h-4 text-brand-400" />
+        <div className="enterprise-card p-6">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-surface-800 flex items-center justify-center flex-shrink-0 border border-white/[0.04]">
+              <Cpu className="w-5 h-5 text-brand-400" />
             </div>
             <div>
-              <h3 className="text-[14px] font-bold text-surface-100 tracking-tight">
+              <h3 className="text-[15px] font-bold text-surface-100 tracking-tight">
                 Numatytasis modelis
               </h3>
-              <p className="text-[12px] text-surface-500 mt-0.5">
-                Dabartinis: <span className="font-mono text-surface-400">{settings?.default_model || '—'}</span>
+              <p className="text-[11px] text-surface-500 mt-1 uppercase font-bold tracking-widest leading-none">
+                Aktyvus: <span className="text-brand-500 font-mono inline-block">{settings?.default_model ? settings.default_model.split('/').pop() : '—'}</span>
               </p>
             </div>
           </div>
@@ -151,22 +151,22 @@ export default function SettingsView() {
         <button
           onClick={handleSave}
           disabled={saving || (!apiKey && selectedModel === settings?.default_model)}
-          className="btn-primary w-full flex items-center justify-center gap-2.5 py-3 text-[14px]"
+          className="btn-professional w-full py-4 text-[15px]"
         >
           {saving ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
               Saugoma...
             </>
           ) : saved ? (
             <>
-              <CheckCircle2 className="w-4 h-4" />
-              Išsaugota!
+              <CheckCircle2 className="w-5 h-5" />
+              Išsaugota sėkmingai
             </>
           ) : (
             <>
-              <Save className="w-4 h-4" />
-              Išsaugoti pakeitimus
+              <Save className="w-5 h-5" />
+              Išsaugoti konfigūraciją
             </>
           )}
         </button>

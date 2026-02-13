@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ── Enums ──────────────────────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ class AnalysisStatus(str, Enum):
     EVALUATING = "evaluating"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELED = "canceled"
 
 
 class ExportFormat(str, Enum):
@@ -91,8 +92,16 @@ class LotInfo(BaseModel):
 
 class SourceDocument(BaseModel):
     filename: str
-    type: DocumentType
+    type: DocumentType = DocumentType.OTHER
     pages: Optional[int] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_from_string(cls, v: Any) -> Any:
+        """Accept plain filename strings from LLM and wrap into object."""
+        if isinstance(v, str):
+            return {"filename": v, "type": "other"}
+        return v
 
 
 class ConfidenceNote(BaseModel):
@@ -126,6 +135,25 @@ class ExtractionResult(BaseModel):
     special_conditions: list[str] = Field(default_factory=list)
     source_documents: list[SourceDocument] = Field(default_factory=list)
     confidence_notes: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_list_fields(cls, values: Any) -> Any:
+        """Coerce list fields that the LLM may return as string or None."""
+        if isinstance(values, dict):
+            list_fields = [
+                "confidence_notes",
+                "key_requirements",
+                "restrictions_and_prohibitions",
+                "special_conditions",
+            ]
+            for field in list_fields:
+                v = values.get(field)
+                if v is None:
+                    values[field] = []
+                elif isinstance(v, str):
+                    values[field] = [v] if v.strip() else []
+        return values
 
 
 class AggregatedReport(ExtractionResult):

@@ -27,7 +27,7 @@ export function useStore<T>(store: ReturnType<typeof createStore<T>>): T {
   useEffect(() => {
     // Sync in case state changed between render and effect
     setSnapshot(store.getState());
-    return store.subscribe(() => setSnapshot(store.getState()));
+    store.subscribe(() => setSnapshot(store.getState()));
   }, [store]);
   return snapshot;
 }
@@ -43,6 +43,10 @@ export interface AppState {
   files: File[];
   uploading: boolean;
   rightPanelOpen: boolean;
+  selectedModel: any | null;
+  modelPanelOpen: boolean;
+  analysisStatus: string | null;
+  analysisElapsedSec: number;
 }
 
 export const appStore = createStore<AppState>({
@@ -54,4 +58,8 @@ export const appStore = createStore<AppState>({
   files: [],
   uploading: false,
   rightPanelOpen: true,
+  selectedModel: null,
+  modelPanelOpen: false,
+  analysisStatus: null,
+  analysisElapsedSec: 0,
 });

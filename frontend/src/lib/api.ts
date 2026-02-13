@@ -45,6 +45,8 @@ export interface ModelInfo {
   id: string;
   name: string;
   context_length: number;
+  pricing_prompt: number;
+  pricing_completion: number;
 }
 
 // ── Analysis endpoints ───────────────────────────────────────────────────────
@@ -74,6 +76,11 @@ export async function listAnalyses(limit = 50, offset = 0): Promise<AnalysisSumm
 
 export async function deleteAnalysis(id: string): Promise<void> {
   const res = await fetch(`${BASE}/analyze/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(res.statusText);
+}
+
+export async function cancelAnalysis(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/analyze/${id}/cancel`, { method: 'POST' });
   if (!res.ok) throw new Error(res.statusText);
 }
 

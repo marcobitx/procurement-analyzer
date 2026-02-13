@@ -100,18 +100,18 @@ export default function ResultsView({ analysisId, onBack }: Props) {
   const qaScore = qa?.completeness_score ?? 0;
   const qaLevel = qaScore >= 80 ? 'success' : qaScore >= 50 ? 'warning' : 'error';
   const qaColors = {
-    success: { text: 'text-emerald-400', bg: 'bg-emerald-500/8', ring: 'ring-emerald-500/15', bar: 'bg-emerald-500' },
-    warning: { text: 'text-amber-400', bg: 'bg-amber-500/8', ring: 'ring-amber-500/15', bar: 'bg-amber-500' },
-    error: { text: 'text-red-400', bg: 'bg-red-500/8', ring: 'ring-red-500/15', bar: 'bg-red-500' },
+    success: { text: 'text-emerald-500', bg: 'bg-emerald-500/5', ring: 'ring-emerald-500/10', bar: 'bg-emerald-500' },
+    warning: { text: 'text-brand-500', bg: 'bg-brand-500/5', ring: 'ring-brand-500/10', bar: 'bg-brand-500' },
+    error: { text: 'text-red-500', bg: 'bg-red-500/5', ring: 'ring-red-500/10', bar: 'bg-red-500' },
   }[qaLevel];
 
   // ── Metric cards data ─────────────────────────────────────────────
 
   const metricCards = [
-    { icon: BookOpen, label: 'Puslapiai', value: metrics?.total_pages || '—', color: 'text-blue-400' },
+    { icon: BookOpen, label: 'Puslapiai', value: metrics?.total_pages || '—', color: 'text-brand-400' },
     { icon: Hash, label: 'Tokenai', value: metrics?.total_tokens ? `${(metrics.total_tokens / 1000).toFixed(1)}k` : '—', color: 'text-brand-400' },
-    { icon: Clock, label: 'Laikas', value: metrics?.elapsed_seconds ? `${metrics.elapsed_seconds.toFixed(0)}s` : '—', color: 'text-cyan-400' },
-    { icon: Coins, label: 'Kaina', value: metrics?.total_cost ? `$${metrics.total_cost.toFixed(3)}` : '—', color: 'text-accent-400' },
+    { icon: Clock, label: 'Laikas', value: metrics?.elapsed_seconds ? `${metrics.elapsed_seconds.toFixed(0)}s` : '—', color: 'text-brand-400' },
+    { icon: Coins, label: 'Kaina', value: metrics?.total_cost ? `$${metrics.total_cost.toFixed(3)}` : '—', color: 'text-brand-400' },
   ];
 
   return (
@@ -121,15 +121,15 @@ export default function ResultsView({ analysisId, onBack }: Props) {
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl text-surface-500 hover:text-surface-200 hover:bg-surface-700/40 transition-all"
+            className="w-11 h-11 flex items-center justify-center rounded-2xl text-surface-400 hover:text-white hover:bg-white/[0.05] border border-white/[0.05] transition-all duration-300"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-extrabold text-surface-50 tracking-tighter">
+            <h1 className="text-3xl font-bold text-white tracking-tight">
               {r.project_name || 'Analizės ataskaita'}
             </h1>
-            <p className="text-[12px] text-surface-500 mt-0.5">
+            <p className="text-[11px] text-surface-500 mt-1 font-bold uppercase tracking-widest">
               {analysis.file_count} dokumentai · {r.procurement_type || 'Viešasis pirkimas'}
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function ResultsView({ analysisId, onBack }: Props) {
 
       {/* ── QA Score ──────────────────────────────────────────── */}
       {qa && (
-        <div className={`glass-card p-5 mb-5 flex items-center gap-5 ${qaColors.bg} ring-1 ${qaColors.ring}`}>
+        <div className={`enterprise-card p-5 mb-5 flex items-center gap-5 ${qaColors.bg} border-brand-500/10`}>
           <div className="relative w-14 h-14 flex-shrink-0">
             <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
               <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="3"
@@ -179,15 +179,17 @@ export default function ResultsView({ analysisId, onBack }: Props) {
 
       {/* ── Metrics ───────────────────────────────────────────── */}
       {metrics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {metricCards.map((m) => {
             const MIcon = m.icon;
             return (
-              <div key={m.label} className="glass-card px-4 py-3.5 flex items-center gap-3">
-                <MIcon className={`w-4 h-4 ${m.color} flex-shrink-0`} />
+              <div key={m.label} className="enterprise-card px-5 py-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-brand-500/5 flex items-center justify-center border border-brand-500/10">
+                  <MIcon className={`w-4 h-4 text-brand-400 flex-shrink-0`} />
+                </div>
                 <div>
-                  <p className="text-[15px] font-bold text-surface-100 tracking-tight">{m.value}</p>
-                  <p className="text-[10px] text-surface-500 font-semibold uppercase tracking-wider">{m.label}</p>
+                  <p className="text-[16px] font-bold text-surface-100 tracking-tight">{m.value}</p>
+                  <p className="text-[10px] text-surface-500 font-bold uppercase tracking-wider">{m.label}</p>
                 </div>
               </div>
             );
@@ -357,21 +359,23 @@ function Section({
   expanded: boolean; onToggle: (key: string) => void; children: React.ReactNode;
 }) {
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="enterprise-card overflow-hidden">
       <button
         onClick={() => onToggle(sectionKey)}
-        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-white/[0.02] transition-colors"
+        className="w-full flex items-center gap-4 px-6 py-5 hover:bg-white/[0.01] transition-all duration-200 group"
       >
-        <Icon className="w-4 h-4 text-accent-400" />
-        <span className="text-[14px] font-bold text-surface-200 flex-1 text-left tracking-tight">
+        <div className="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center border border-white/[0.04] transition-colors group-hover:border-brand-500/30">
+          <Icon className="w-4 h-4 text-brand-400" />
+        </div>
+        <span className="text-[15px] font-bold text-surface-50 flex-1 text-left tracking-tight">
           {title}
         </span>
         {expanded
-          ? <ChevronUp className="w-4 h-4 text-surface-600" />
-          : <ChevronDown className="w-4 h-4 text-surface-600" />}
+          ? <ChevronUp className="w-5 h-5 text-surface-600" />
+          : <ChevronDown className="w-5 h-5 text-surface-600" />}
       </button>
       {expanded && (
-        <div className="px-5 pb-5 pt-1 border-t border-white/[0.03]">
+        <div className="px-6 pb-6 pt-1 border-t border-white/[0.02]">
           {children}
         </div>
       )}
