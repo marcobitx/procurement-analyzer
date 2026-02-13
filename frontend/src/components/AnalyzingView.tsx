@@ -74,8 +74,8 @@ export default function AnalyzingView({ analysisId, error, onComplete, onError }
       analysisId,
       (e: SSEEvent) => {
         setEvents((prev) => [...prev, { ...e, ts: Date.now() }]);
-        if (e.event === 'status' && e.data?.status) setCurrentStatus(e.data.status);
-        if (e.data?.event_type === 'status_change' && e.data?.new_status) setCurrentStatus(e.data.new_status);
+        if (e.event === 'status' && e.data?.status) setCurrentStatus(e.data.status.toUpperCase());
+        if (e.data?.event_type === 'status_change' && e.data?.new_status) setCurrentStatus(e.data.new_status.toUpperCase());
       },
       () => { },
     );
