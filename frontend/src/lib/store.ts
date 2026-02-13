@@ -40,6 +40,9 @@ export interface AppState {
   sidebarOpen: boolean;
   events: Array<{ event: string; data: any; ts: number }>;
   error: string | null;
+  files: File[];
+  uploading: boolean;
+  rightPanelOpen: boolean;
 }
 
 export const appStore = createStore<AppState>({
@@ -48,4 +51,7 @@ export const appStore = createStore<AppState>({
   sidebarOpen: true,
   events: [],
   error: null,
+  files: [],
+  uploading: false,
+  rightPanelOpen: true,
 });

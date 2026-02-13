@@ -1,9 +1,9 @@
 // frontend/src/components/TopBar.tsx
-// Persistent top bar — shows breadcrumbs, model indicator, and error alerts
+// Thin top bar — breadcrumb path + model indicator + error banner
 // Always visible at the top of the main content area
 // Related: App.tsx, store.ts
 
-import { AlertTriangle, X, Cpu, Zap, Upload, History, Settings as SettingsIcon } from 'lucide-react';
+import { AlertTriangle, X, Zap, Upload, History, Settings as SettingsIcon, FileText, Cpu } from 'lucide-react';
 import type { AppView } from '../lib/store';
 
 interface Props {
@@ -12,26 +12,24 @@ interface Props {
   onDismissError: () => void;
 }
 
-const VIEW_META: Record<AppView, { label: string; icon: any }> = {
-  upload: { label: 'Nauja analizė', icon: Upload },
-  analyzing: { label: 'Analizuojama', icon: Zap },
-  results: { label: 'Ataskaita', icon: Cpu },
-  history: { label: 'Istorija', icon: History },
-  settings: { label: 'Nustatymai', icon: SettingsIcon },
+const VIEW_META: Record<AppView, { label: string; icon: any; breadcrumb: string }> = {
+  upload: { label: 'Nauja analizė', icon: Upload, breadcrumb: 'Pradžia / Nauja analizė' },
+  analyzing: { label: 'Analizuojama', icon: Zap, breadcrumb: 'Pradžia / Analizė' },
+  results: { label: 'Ataskaita', icon: FileText, breadcrumb: 'Pradžia / Ataskaita' },
+  history: { label: 'Istorija', icon: History, breadcrumb: 'Pradžia / Istorija' },
+  settings: { label: 'Nustatymai', icon: SettingsIcon, breadcrumb: 'Pradžia / Nustatymai' },
 };
 
 export default function TopBar({ currentView, error, onDismissError }: Props) {
   const meta = VIEW_META[currentView] || VIEW_META.upload;
-  const Icon = meta.icon;
 
   return (
     <header className="flex-shrink-0 border-b border-white/[0.04] bg-surface-900/60 backdrop-blur-lg">
       <div className="flex items-center justify-between h-12 px-5 md:px-8">
-        {/* Left — breadcrumb */}
-        <div className="flex items-center gap-2.5">
-          <Icon className="w-3.5 h-3.5 text-surface-500" />
-          <span className="text-[13px] font-medium text-surface-300 tracking-tight">
-            {meta.label}
+        {/* Left — breadcrumb path */}
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] text-surface-500 font-medium tracking-tight">
+            {meta.breadcrumb}
           </span>
         </div>
 

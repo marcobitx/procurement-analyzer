@@ -187,7 +187,6 @@ class LLMClient:
 
         if response_format:
             body["response_format"] = response_format
-            body["provider"] = {"require_parameters": True}
 
         thinking_cfg = _build_thinking(thinking)
         if thinking_cfg:
@@ -204,7 +203,7 @@ class LLMClient:
         response_schema: type[BaseModel],
         model: str | None = None,
         temperature: float = 0.1,
-        thinking: str = "high",
+        thinking: str = "off",
     ) -> tuple[BaseModel, dict]:
         """
         Structured output completion. Returns (parsed_model, usage_dict).
@@ -223,7 +222,6 @@ class LLMClient:
             "type": "json_schema",
             "json_schema": {
                 "name": response_schema.__name__,
-                "strict": True,
                 "schema": cleaned_schema,
             },
         }

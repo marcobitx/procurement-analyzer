@@ -1,13 +1,12 @@
 // frontend/src/components/ResultsView.tsx
 // Analysis report display — structured sections with collapsible panels
-// Shows QA score, metrics, report sections, source docs, and chat trigger
-// Related: api.ts, ChatPanel.tsx, App.tsx
+// Right sidebar content (source docs, QA missing) moved to RightPanel.tsx
+// Related: api.ts, RightPanel.tsx, App.tsx
 
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Download,
-  MessageSquare,
   Building2,
   Calendar,
   FileText,
@@ -25,7 +24,6 @@ import {
   Info,
 } from 'lucide-react';
 import { getAnalysis, exportAnalysis, type Analysis } from '../lib/api';
-import ChatPanel from './ChatPanel';
 
 interface Props {
   analysisId: string;
@@ -35,7 +33,6 @@ interface Props {
 export default function ResultsView({ analysisId, onBack }: Props) {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
-  const [chatOpen, setChatOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(
     new Set(['summary', 'requirements', 'qualification', 'evaluation']),
@@ -139,10 +136,6 @@ export default function ResultsView({ analysisId, onBack }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => setChatOpen(!chatOpen)} className="btn-secondary flex items-center gap-2 text-[13px]">
-            <MessageSquare className="w-4 h-4" />
-            Klausti AI
-          </button>
           {(['pdf', 'docx'] as const).map((fmt) => (
             <button
               key={fmt}
@@ -161,7 +154,6 @@ export default function ResultsView({ analysisId, onBack }: Props) {
       {qa && (
         <div className={`glass-card p-5 mb-5 flex items-center gap-5 ${qaColors.bg} ring-1 ${qaColors.ring}`}>
           <div className="relative w-14 h-14 flex-shrink-0">
-            {/* Circular progress ring */}
             <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
               <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="3"
                 className="text-surface-700/30" />
@@ -203,204 +195,155 @@ export default function ResultsView({ analysisId, onBack }: Props) {
         </div>
       )}
 
-      {/* ── Report Grid ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Main content — 2 cols */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Summary */}
-          <Section title="Projekto santrauka" icon={FileText} sectionKey="summary" expanded={expanded.has('summary')} onToggle={toggle}>
-            <InfoRow label="Pavadinimas" value={r.project_name} />
-            <InfoRow label="Pirkimo tipas" value={r.procurement_type} />
-            <InfoRow label="Pirkimo būdas" value={r.procurement_method} />
-            {r.procuring_organization && (
-              <>
-                <InfoRow label="Organizacija" value={r.procuring_organization.name} />
-                <InfoRow label="Kodas" value={r.procuring_organization.code} />
-              </>
-            )}
-            {r.estimated_value && (
-              <InfoRow
-                label="Vertė"
-                value={
-                  r.estimated_value.amount
-                    ? `€${r.estimated_value.amount.toLocaleString()} ${r.estimated_value.with_vat ? '(su PVM)' : '(be PVM)'}`
-                    : null
-                }
-              />
-            )}
-            {r.contract_duration && <InfoRow label="Trukmė" value={r.contract_duration} />}
+      {/* ── Report Sections (full width, no sidebar) ──────────── */}
+      <div className="space-y-4">
+        {/* Summary */}
+        <Section title="Projekto santrauka" icon={FileText} sectionKey="summary" expanded={expanded.has('summary')} onToggle={toggle}>
+          <InfoRow label="Pavadinimas" value={r.project_name} />
+          <InfoRow label="Pirkimo tipas" value={r.procurement_type} />
+          <InfoRow label="Pirkimo būdas" value={r.procurement_method} />
+          {r.procuring_organization && (
+            <>
+              <InfoRow label="Organizacija" value={r.procuring_organization.name} />
+              <InfoRow label="Kodas" value={r.procuring_organization.code} />
+            </>
+          )}
+          {r.estimated_value && (
+            <InfoRow
+              label="Vertė"
+              value={
+                r.estimated_value.amount
+                  ? `€${r.estimated_value.amount.toLocaleString()} ${r.estimated_value.with_vat ? '(su PVM)' : '(be PVM)'}`
+                  : null
+              }
+            />
+          )}
+          {r.contract_duration && <InfoRow label="Trukmė" value={r.contract_duration} />}
+        </Section>
+
+        {/* Deadlines */}
+        {r.deadlines && (
+          <Section title="Terminai" icon={Calendar} sectionKey="deadlines" expanded={expanded.has('deadlines')} onToggle={toggle}>
+            <InfoRow label="Pasiūlymų pateikimas" value={r.deadlines.submission_deadline} />
+            <InfoRow label="Klausimų pateikimas" value={r.deadlines.questions_deadline} />
+            <InfoRow label="Vokų atplėšimas" value={r.deadlines.opening_date} />
+            <InfoRow label="Galiojimo laikotarpis" value={r.deadlines.validity_period} />
           </Section>
+        )}
 
-          {/* Deadlines */}
-          {r.deadlines && (
-            <Section title="Terminai" icon={Calendar} sectionKey="deadlines" expanded={expanded.has('deadlines')} onToggle={toggle}>
-              <InfoRow label="Pasiūlymų pateikimas" value={r.deadlines.submission_deadline} />
-              <InfoRow label="Klausimų pateikimas" value={r.deadlines.questions_deadline} />
-              <InfoRow label="Vokų atplėšimas" value={r.deadlines.opening_date} />
-              <InfoRow label="Galiojimo laikotarpis" value={r.deadlines.validity_period} />
-            </Section>
-          )}
+        {/* Key requirements */}
+        {r.key_requirements?.length > 0 && (
+          <Section title="Pagrindiniai reikalavimai" icon={FileText} sectionKey="requirements" expanded={expanded.has('requirements')} onToggle={toggle}>
+            <ul className="space-y-2">
+              {r.key_requirements.map((req: string, i: number) => (
+                <li key={i} className="flex gap-2.5 text-[13px] text-surface-300 leading-relaxed">
+                  <span className="text-accent-400 mt-0.5 flex-shrink-0">▸</span>
+                  <span>{req}</span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
-          {/* Key requirements */}
-          {r.key_requirements?.length > 0 && (
-            <Section title="Pagrindiniai reikalavimai" icon={FileText} sectionKey="requirements" expanded={expanded.has('requirements')} onToggle={toggle}>
-              <ul className="space-y-2">
-                {r.key_requirements.map((req: string, i: number) => (
-                  <li key={i} className="flex gap-2.5 text-[13px] text-surface-300 leading-relaxed">
-                    <span className="text-accent-400 mt-0.5 flex-shrink-0">▸</span>
-                    <span>{req}</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {/* Qualification requirements */}
-          {r.qualification_requirements && (
-            <Section title="Kvalifikacijos reikalavimai" icon={ShieldCheck} sectionKey="qualification" expanded={expanded.has('qualification')} onToggle={toggle}>
-              {(['financial', 'technical', 'professional'] as const).map((cat) => {
-                const items = r.qualification_requirements[cat];
-                if (!items?.length) return null;
-                const labels = { financial: 'Finansiniai', technical: 'Techniniai', professional: 'Profesiniai' };
-                return (
-                  <div key={cat} className="mb-4 last:mb-0">
-                    <p className="text-[11px] font-bold text-accent-400/80 uppercase tracking-wider mb-2">
-                      {labels[cat]}
+        {/* Qualification requirements */}
+        {r.qualification_requirements && (
+          <Section title="Kvalifikacijos reikalavimai" icon={ShieldCheck} sectionKey="qualification" expanded={expanded.has('qualification')} onToggle={toggle}>
+            {(['financial', 'technical', 'professional'] as const).map((cat) => {
+              const items = r.qualification_requirements[cat];
+              if (!items?.length) return null;
+              const labels = { financial: 'Finansiniai', technical: 'Techniniai', professional: 'Profesiniai' };
+              return (
+                <div key={cat} className="mb-4 last:mb-0">
+                  <p className="text-[11px] font-bold text-accent-400/80 uppercase tracking-wider mb-2">
+                    {labels[cat]}
+                  </p>
+                  {items.map((q: string, i: number) => (
+                    <p key={i} className="text-[13px] text-surface-300 ml-3 mb-1 leading-relaxed">
+                      • {q}
                     </p>
-                    {items.map((q: string, i: number) => (
-                      <p key={i} className="text-[13px] text-surface-300 ml-3 mb-1 leading-relaxed">
-                        • {q}
-                      </p>
-                    ))}
+                  ))}
+                </div>
+              );
+            })}
+          </Section>
+        )}
+
+        {/* Evaluation criteria */}
+        {r.evaluation_criteria?.length > 0 && (
+          <Section title="Vertinimo kriterijai" icon={TrendingUp} sectionKey="evaluation" expanded={expanded.has('evaluation')} onToggle={toggle}>
+            <div className="space-y-2">
+              {r.evaluation_criteria.map((c: any, i: number) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-white/[0.03] last:border-0">
+                  <span className="text-[13px] text-surface-300">{c.name || c.criterion}</span>
+                  <div className="flex items-center gap-2">
+                    {c.weight != null && (
+                      <>
+                        <div className="w-20 h-1.5 rounded-full bg-surface-700/40 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-accent-500 to-accent-600"
+                            style={{ width: `${Math.min(c.weight, 100)}%`, transition: 'width 1s ease-out' }}
+                          />
+                        </div>
+                        <span className="text-[12px] font-mono font-semibold text-accent-400 w-10 text-right">
+                          {c.weight}%
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Lots */}
+        {r.lots?.length > 0 && (
+          <Section title={`Dalys (${r.lots.length})`} icon={Layers} sectionKey="lots" expanded={expanded.has('lots')} onToggle={toggle}>
+            {r.lots.map((lot: any, i: number) => (
+              <div key={i} className="py-3 border-b border-white/[0.03] last:border-0">
+                <p className="text-[13px] font-semibold text-surface-200">
+                  {lot.number ? `Dalis ${lot.number}: ` : ''}{lot.title || lot.name || 'Be pavadinimo'}
+                </p>
+                {lot.description && <p className="text-[12px] text-surface-400 mt-1 leading-relaxed">{lot.description}</p>}
+                {lot.estimated_value && <p className="text-[12px] font-mono text-accent-400 mt-1">€{lot.estimated_value.toLocaleString()}</p>}
+              </div>
+            ))}
+          </Section>
+        )}
+
+        {/* Special conditions */}
+        {r.special_conditions?.length > 0 && (
+          <Section title="Specialiosios sąlygos" icon={Info} sectionKey="conditions" expanded={expanded.has('conditions')} onToggle={toggle}>
+            <ul className="space-y-1.5">
+              {r.special_conditions.map((c: string, i: number) => (
+                <li key={i} className="text-[13px] text-surface-300 leading-relaxed">• {c}</li>
+              ))}
+            </ul>
+          </Section>
+        )}
+
+        {/* Confidence notes */}
+        {r.confidence_notes?.length > 0 && (
+          <Section title="Pastabos" icon={AlertTriangle} sectionKey="notes" expanded={expanded.has('notes')} onToggle={toggle}>
+            <div className="space-y-2">
+              {r.confidence_notes.map((note: any, i: number) => {
+                const severity = typeof note === 'string' ? 'info' : note.severity || 'info';
+                const text = typeof note === 'string' ? note : note.text || note.note;
+                const styles: Record<string, string> = {
+                  info: 'bg-blue-500/6 border-blue-500/12 text-blue-300',
+                  warning: 'bg-amber-500/6 border-amber-500/12 text-amber-300',
+                  conflict: 'bg-red-500/6 border-red-500/12 text-red-300',
+                };
+                return (
+                  <div key={i} className={`text-[13px] px-3.5 py-2.5 rounded-xl border leading-relaxed ${styles[severity] || styles.info}`}>
+                    {text}
                   </div>
                 );
               })}
-            </Section>
-          )}
-
-          {/* Evaluation criteria */}
-          {r.evaluation_criteria?.length > 0 && (
-            <Section title="Vertinimo kriterijai" icon={TrendingUp} sectionKey="evaluation" expanded={expanded.has('evaluation')} onToggle={toggle}>
-              <div className="space-y-2">
-                {r.evaluation_criteria.map((c: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/[0.03] last:border-0">
-                    <span className="text-[13px] text-surface-300">{c.name || c.criterion}</span>
-                    <div className="flex items-center gap-2">
-                      {c.weight != null && (
-                        <>
-                          <div className="w-20 h-1.5 rounded-full bg-surface-700/40 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-accent-500 to-accent-600"
-                              style={{ width: `${Math.min(c.weight, 100)}%`, transition: 'width 1s ease-out' }}
-                            />
-                          </div>
-                          <span className="text-[12px] font-mono font-semibold text-accent-400 w-10 text-right">
-                            {c.weight}%
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          {/* Lots */}
-          {r.lots?.length > 0 && (
-            <Section title={`Dalys (${r.lots.length})`} icon={Layers} sectionKey="lots" expanded={expanded.has('lots')} onToggle={toggle}>
-              {r.lots.map((lot: any, i: number) => (
-                <div key={i} className="py-3 border-b border-white/[0.03] last:border-0">
-                  <p className="text-[13px] font-semibold text-surface-200">
-                    {lot.number ? `Dalis ${lot.number}: ` : ''}{lot.title || lot.name || 'Be pavadinimo'}
-                  </p>
-                  {lot.description && <p className="text-[12px] text-surface-400 mt-1 leading-relaxed">{lot.description}</p>}
-                  {lot.estimated_value && <p className="text-[12px] font-mono text-accent-400 mt-1">€{lot.estimated_value.toLocaleString()}</p>}
-                </div>
-              ))}
-            </Section>
-          )}
-
-          {/* Confidence notes */}
-          {r.confidence_notes?.length > 0 && (
-            <Section title="Pastabos" icon={AlertTriangle} sectionKey="notes" expanded={expanded.has('notes')} onToggle={toggle}>
-              <div className="space-y-2">
-                {r.confidence_notes.map((note: any, i: number) => {
-                  const severity = typeof note === 'string' ? 'info' : note.severity || 'info';
-                  const text = typeof note === 'string' ? note : note.text || note.note;
-                  const styles: Record<string, string> = {
-                    info: 'bg-blue-500/6 border-blue-500/12 text-blue-300',
-                    warning: 'bg-amber-500/6 border-amber-500/12 text-amber-300',
-                    conflict: 'bg-red-500/6 border-red-500/12 text-red-300',
-                  };
-                  return (
-                    <div key={i} className={`text-[13px] px-3.5 py-2.5 rounded-xl border leading-relaxed ${styles[severity] || styles.info}`}>
-                      {text}
-                    </div>
-                  );
-                })}
-              </div>
-            </Section>
-          )}
-        </div>
-
-        {/* ── Right sidebar ───────────────────────────────────── */}
-        <div className="space-y-4">
-          {/* Source documents */}
-          {r.source_documents?.length > 0 && (
-            <div className="glass-card p-4">
-              <h3 className="text-[12px] font-bold text-surface-400 uppercase tracking-wider mb-3">
-                Šaltiniai ({r.source_documents.length})
-              </h3>
-              <div className="space-y-2.5">
-                {r.source_documents.map((doc: any, i: number) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <FileText className="w-3.5 h-3.5 text-surface-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-[12px] font-medium text-surface-300 leading-tight">{doc.filename}</p>
-                      <p className="text-[11px] text-surface-500">{doc.doc_type || 'other'} · {doc.page_count || '?'} psl.</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
-          )}
-
-          {/* Missing fields */}
-          {qa?.missing_fields?.length > 0 && (
-            <div className="glass-card p-4">
-              <h3 className="text-[12px] font-bold text-surface-400 uppercase tracking-wider mb-3">
-                Trūkstami laukai
-              </h3>
-              <div className="space-y-1.5">
-                {qa.missing_fields.map((f: string, i: number) => (
-                  <div key={i} className="flex items-center gap-2 text-[12px] text-amber-400">
-                    <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                    <span>{f}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Special conditions */}
-          {r.special_conditions?.length > 0 && (
-            <div className="glass-card p-4">
-              <h3 className="text-[12px] font-bold text-surface-400 uppercase tracking-wider mb-3">
-                Specialiosios sąlygos
-              </h3>
-              <ul className="space-y-1.5">
-                {r.special_conditions.map((c: string, i: number) => (
-                  <li key={i} className="text-[12px] text-surface-400 leading-relaxed">• {c}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+          </Section>
+        )}
       </div>
-
-      {/* ── Chat Panel ────────────────────────────────────────── */}
-      {chatOpen && <ChatPanel analysisId={analysisId} onClose={() => setChatOpen(false)} />}
     </div>
   );
 }
