@@ -294,11 +294,29 @@ async def stream_analysis_progress(
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     async def event_generator():
+        from app.services.stream_store import get_stream, remove_stream
+
         last_event_index = 0
         last_status = None
 
         while True:
             try:
+                # 1. Drain thinking queue (non-blocking, fast)
+                had_thinking = False
+                stream_q = get_stream(analysis_id)
+                if stream_q:
+                    while not stream_q.empty():
+                        try:
+                            chunk = stream_q.get_nowait()
+                            yield {
+                                "event": "thinking",
+                                "data": json.dumps(chunk),
+                            }
+                            had_thinking = True
+                        except asyncio.QueueEmpty:
+                            break
+
+                # 2. Poll DB for durable events (existing logic)
                 record = await db.get_analysis(analysis_id)
                 if record is None:
                     yield {
@@ -312,32 +330,55 @@ async def stream_analysis_progress(
                 # Emit new events since last check
                 new_events = await db.get_events(analysis_id, since_index=last_event_index)
                 for event in new_events:
+                    event_type = event.get("event_type", "update")
+                    # Flatten: merge event metadata with inner data payload
+                    flat = {
+                        "event_type": event_type,
+                        "timestamp": event.get("timestamp"),
+                        "index": event.get("index"),
+                        **(event.get("data") or {}),
+                    }
+                    # Route to SSE event names the frontend listens for
+                    if event_type == "metrics_update":
+                        sse_name = "metrics"
+                    elif event_type == "error":
+                        sse_name = "error_event"
+                    else:
+                        sse_name = "progress"
                     yield {
-                        "event": event.get("event_type", "update"),
-                        "data": json.dumps(event),
+                        "event": sse_name,
+                        "data": json.dumps(flat),
                     }
                     last_event_index += 1
 
-                # Emit status change
+                # Emit status change (uppercase for frontend compatibility)
                 if current_status != last_status:
                     progress = _build_progress(record)
+                    progress_dict = progress.model_dump()
+                    progress_dict["status"] = progress_dict["status"].upper()
                     yield {
                         "event": "status",
-                        "data": progress.model_dump_json(),
+                        "data": json.dumps(progress_dict),
                     }
                     last_status = current_status
 
                 # Close on terminal status
                 if current_status in ("completed", "failed", "canceled"):
-                    # Send final progress
+                    # Send final progress (uppercase status)
                     progress = _build_progress(record)
+                    progress_dict = progress.model_dump()
+                    progress_dict["status"] = progress_dict["status"].upper()
                     yield {
                         "event": "complete",
-                        "data": progress.model_dump_json(),
+                        "data": json.dumps(progress_dict),
                     }
                     break
 
-                await asyncio.sleep(1)
+                # 3. Shorter sleep when streaming is active
+                if had_thinking:
+                    await asyncio.sleep(0.15)
+                else:
+                    await asyncio.sleep(0.8)
 
             except asyncio.CancelledError:
                 logger.info("SSE stream cancelled for analysis %s", analysis_id)
@@ -423,19 +464,67 @@ async def list_analyses(
         if file_count == 0:
             file_count = sum(1 for e in events if e.get("event_type") == "file_parsed")
 
-        # Get project summary from report
+        # Extract rich data from report
+        project_title = None
         project_summary = None
+        organization_name = None
+        estimated_value = None
+        currency = "EUR"
+        submission_deadline = None
+        procurement_type = None
         report_json = record.get("report_json")
         if report_json and isinstance(report_json, dict):
+            project_title = report_json.get("project_title")
             project_summary = report_json.get("project_summary")
+            procurement_type = report_json.get("procurement_type")
+
+            org = report_json.get("procuring_organization")
+            if org and isinstance(org, dict):
+                organization_name = org.get("name")
+
+            ev = report_json.get("estimated_value")
+            if ev and isinstance(ev, dict):
+                estimated_value = ev.get("amount")
+                currency = ev.get("currency", "EUR")
+
+            deadlines = report_json.get("deadlines")
+            if deadlines and isinstance(deadlines, dict):
+                submission_deadline = deadlines.get("submission_deadline")
+
+        # QA completeness score
+        completeness_score = None
+        qa_json = record.get("qa_json")
+        if qa_json and isinstance(qa_json, dict):
+            completeness_score = qa_json.get("completeness_score")
+
+        # Completed timestamp
+        completed_at = None
+        completed_ts = record.get("completed_at")
+        if completed_ts:
+            if isinstance(completed_ts, str):
+                try:
+                    completed_at = datetime.fromisoformat(completed_ts)
+                except ValueError:
+                    completed_at = None
+            else:
+                completed_at = completed_ts
 
         summaries.append(
             AnalysisSummary(
                 id=record["_id"],
                 created_at=created_at,
+                completed_at=completed_at,
                 status=AnalysisStatus(record.get("status", "pending")),
                 file_count=file_count,
+                model=record.get("model"),
+                project_title=project_title,
                 project_summary=project_summary,
+                organization_name=organization_name,
+                estimated_value=estimated_value,
+                currency=currency,
+                submission_deadline=submission_deadline,
+                completeness_score=completeness_score,
+                procurement_type=procurement_type,
             )
         )
 
@@ -523,8 +612,7 @@ async def chat_with_analysis(
             ):
                 full_response += chunk
                 yield {
-                    "event": "chunk",
-                    "data": json.dumps({"content": chunk}),
+                    "data": json.dumps({"chunk": chunk}),
                 }
 
             # Save assistant response to DB
@@ -532,14 +620,10 @@ async def chat_with_analysis(
                 analysis_id, role="assistant", content=full_response
             )
 
-            yield {
-                "event": "done",
-                "data": json.dumps({"content": full_response}),
-            }
+            yield {"data": "[DONE]"}
         except Exception as e:
             logger.error("Chat error for %s: %s", analysis_id, e, exc_info=True)
             yield {
-                "event": "error",
                 "data": json.dumps({"error": str(e)}),
             }
         finally:

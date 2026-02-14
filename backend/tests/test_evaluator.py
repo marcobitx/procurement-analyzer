@@ -30,7 +30,7 @@ def _make_complete_report() -> AggregatedReport:
         procuring_organization=ProcuringOrganization(
             name="Vilniaus miesto savivaldybė",
             code="188710061",
-            contact="pirkimai@vilnius.lt",
+            email="pirkimai@vilnius.lt",
         ),
         procurement_type="Atviras konkursas",
         estimated_value=EstimatedValue(

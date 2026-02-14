@@ -1,6 +1,6 @@
 // frontend/tailwind.config.cjs
 // Design system tokens — Procurement Analyzer
-// "Titanium Enterprise" — deep neutral surfaces, indigo primary
+// "Warm Enterprise" — warm stone surfaces, amber accent (Claude/OpenAI inspired)
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -13,66 +13,79 @@ module.exports = {
         mono: ['"JetBrains Mono"', 'Consolas', 'monospace'],
       },
       colors: {
-        // Brand — Integrated Indigo (OpenAI/Claude style)
+        // Brand — Warm Amber (Claude/Databricks inspired)
         brand: {
-          50: '#f0f4ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1', // Primary Indigo
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#1e1b4b',
-          950: '#10101a',
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
+          500: '#f59e0b', // Primary Amber
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
+          950: '#451a03',
         },
-        // Accent — Sophisticated Slate (Unused but kept for palette consistency)
+        // Accent — Warm Copper
         accent: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617',
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
+          950: '#431407',
         },
-        // Neutrals — Deep Enterprise Zinc
+        // Neutrals — Smoked Clay (terracotta undertone)
         surface: {
-          50: '#fafafa',
-          100: '#f4f4f5',
-          200: '#e4e4e7',
-          300: '#d4d4d8',
-          400: '#a1a1aa',
-          500: '#71717a',
-          600: '#52525b',
-          700: '#3f3f46',
-          800: '#27272a',
-          900: '#18181b',
-          950: '#09090b', // Core Background
+          50: '#fdf9f7',
+          100: '#f8f1ed',
+          200: '#ede5df',
+          300: '#ddd3cb',
+          400: '#b5a99f',
+          500: '#8d8076',
+          600: '#6d5f55',
+          700: '#574a42',
+          800: '#3e332d',
+          900: '#2e2520',
+          950: '#231c18', // Core Background — smoked clay
         },
       },
       backgroundImage: {
-        'gradient-page': 'radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.03) 0, transparent 50%), #09090b',
-        'gradient-brand': 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+        'gradient-page': 'radial-gradient(at 0% 0%, rgba(210, 120, 80, 0.07) 0, transparent 50%), radial-gradient(at 100% 100%, rgba(180, 90, 50, 0.05) 0, transparent 50%), #231c18',
+        'gradient-brand': 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
       },
       boxShadow: {
-        card: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-        'card-hover': '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+        card: '0 4px 20px rgba(35, 28, 24, 0.5), 0 0 0 1px rgba(253, 249, 247, 0.05)',
+        'card-hover': '0 8px 32px rgba(35, 28, 24, 0.6), 0 0 0 1px rgba(253, 249, 247, 0.08)',
+        'glow-brand': '0 0 20px rgba(245, 158, 11, 0.15), 0 0 6px rgba(245, 158, 11, 0.1)',
+        'glow-emerald': '0 0 12px rgba(16, 185, 129, 0.1)',
       },
       borderRadius: {
-        '2xl': '1rem',
-        '3xl': '1.5rem',
-        '4xl': '2rem',
+        none: '0',
+        sm: '4px',
+        DEFAULT: '10px',
+        md: '10px',
+        lg: '10px',
+        xl: '10px',
+        '2xl': '10px',
+        '3xl': '10px',
+        '4xl': '10px',
+        full: '9999px',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out forwards',
         'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
         shimmer: 'shimmer 2.5s linear infinite',
+        'prism-shift': 'prismShift 3s ease-in-out infinite',
+        'orbital-pulse': 'orbitalPulse 2s ease-in-out infinite',
+        'slide-in-right': 'slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'slide-out-right': 'slideOutRight 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards',
       },
       keyframes: {
         fadeIn: {
@@ -83,9 +96,26 @@ module.exports = {
           from: { opacity: '0', transform: 'translateY(16px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        slideInRight: {
+          from: { transform: 'translateX(100%)', opacity: '0.5' },
+          to: { transform: 'translateX(0)', opacity: '1' },
+        },
+        slideOutRight: {
+          from: { transform: 'translateX(0)', opacity: '1' },
+          to: { transform: 'translateX(100%)', opacity: '0' },
+        },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        prismShift: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '50%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
+        orbitalPulse: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.7' },
+          '50%': { transform: 'scale(1.15)', opacity: '1' },
         },
       },
       transitionTimingFunction: {

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 from app.models.schemas import AggregatedReport, SourceDocument
 from app.prompts.aggregation import AGGREGATION_SYSTEM, AGGREGATION_USER
@@ -23,6 +23,7 @@ async def aggregate_results(
     extractions: list[tuple[ParsedDocument, ExtractionResult, dict]],
     llm: LLMClient,
     model: str,
+    on_thinking: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[AggregatedReport, dict]:
     """
     Merge N extraction results into 1 aggregated report.
@@ -71,12 +72,14 @@ async def aggregate_results(
         len(all_source_docs),
     )
 
-    # Call LLM
-    report, usage = await llm.complete_structured(
+    # Call LLM with streaming thinking
+    report, usage = await llm.complete_structured_streaming(
         system=AGGREGATION_SYSTEM,
         user=user_prompt,
         response_schema=AggregatedReport,
         model=model,
+        thinking="medium",
+        on_thinking=on_thinking,
     )
 
     # Ensure source_documents includes all analyzed docs

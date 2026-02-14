@@ -40,7 +40,8 @@ def full_report() -> AggregatedReport:
         procuring_organization=ProcuringOrganization(
             name="Vilniaus miesto savivaldybės administracija",
             code="188710061",
-            contact="info@vilnius.lt, tel. +370 5 211 2000",
+            email="info@vilnius.lt",
+            phone="+370 5 211 2000",
         ),
         procurement_type="Atviras konkursas",
         estimated_value=EstimatedValue(

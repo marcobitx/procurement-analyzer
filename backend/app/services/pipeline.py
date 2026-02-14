@@ -17,6 +17,7 @@ from app.services.evaluator import evaluate_report
 from app.services.extraction import extract_all
 from app.services.llm import LLMClient
 from app.services.parser import ParsedDocument, parse_all
+from app.services.stream_store import create_stream, remove_stream
 from app.services.zip_extractor import extract_files
 
 logger = logging.getLogger(__name__)
@@ -71,10 +72,21 @@ class AnalysisPipeline:
         self.model = model
         self.metrics = PipelineMetrics(model_used=model)
         self._event_index = 0
+        self._stream_queue = create_stream(analysis_id)
 
     async def run(self, upload_paths: list[Path]) -> None:
         """Execute the full analysis pipeline."""
         self.metrics.start_time = time.time()
+
+        # Phase-specific thinking callbacks
+        async def extraction_thinking(text: str) -> None:
+            await self._push_thinking("extraction", text)
+
+        async def aggregation_thinking(text: str) -> None:
+            await self._push_thinking("aggregation", text)
+
+        async def evaluation_thinking(text: str) -> None:
+            await self._push_thinking("evaluation", text)
 
         try:
             # Step 0: Unpack ZIPs → flat file list
@@ -120,7 +132,9 @@ class AnalysisPipeline:
                 model=self.model,
                 on_started=self._on_extraction_started_sync,
                 on_completed=self._on_extraction_completed_sync,
+                on_thinking=extraction_thinking,
             )
+            await self._push_thinking_done()
 
             # Accumulate extraction token metrics from results
             for _doc, _result, usage in extractions:
@@ -132,8 +146,10 @@ class AnalysisPipeline:
             await self._update_status(AnalysisStatus.AGGREGATING)
             await self._emit_event("aggregation_started", {})
             report, agg_usage = await aggregate_results(
-                extractions, self.llm, self.model
+                extractions, self.llm, self.model,
+                on_thinking=aggregation_thinking,
             )
+            await self._push_thinking_done()
             self.metrics.tokens_aggregation_input = agg_usage.get("input_tokens", 0)
             self.metrics.tokens_aggregation_output = agg_usage.get("output_tokens", 0)
             await self._emit_event("aggregation_completed", agg_usage)
@@ -149,8 +165,10 @@ class AnalysisPipeline:
                 for d in parsed_docs
             ]
             qa, eval_usage = await evaluate_report(
-                report, source_docs, self.llm, self.model
+                report, source_docs, self.llm, self.model,
+                on_thinking=evaluation_thinking,
             )
+            await self._push_thinking_done()
             self.metrics.tokens_evaluation_input = eval_usage.get("input_tokens", 0)
             self.metrics.tokens_evaluation_output = eval_usage.get("output_tokens", 0)
             await self._emit_event("evaluation_completed", eval_usage)
@@ -188,6 +206,9 @@ class AnalysisPipeline:
             )
             await self._emit_event("error", {"message": str(e)})
 
+        finally:
+            remove_stream(self.analysis_id)
+
     # ── Status and event helpers ───────────────────────────────────────────
 
     async def _update_status(self, status: AnalysisStatus) -> None:
@@ -204,6 +225,33 @@ class AnalysisPipeline:
         }
         self._event_index += 1
         await self.db.append_event(self.analysis_id, event)
+
+    async def _push_thinking(self, phase: str, text: str) -> None:
+        """Push a thinking chunk to the in-memory stream queue."""
+        try:
+            self._stream_queue.put_nowait({
+                "type": "thinking",
+                "phase": phase,
+                "text": text,
+            })
+        except asyncio.QueueFull:
+            # Drop oldest chunk if full (non-critical ephemeral data)
+            try:
+                self._stream_queue.get_nowait()
+                self._stream_queue.put_nowait({
+                    "type": "thinking",
+                    "phase": phase,
+                    "text": text,
+                })
+            except asyncio.QueueEmpty:
+                pass
+
+    async def _push_thinking_done(self) -> None:
+        """Signal that the current thinking phase has ended."""
+        try:
+            self._stream_queue.put_nowait({"type": "thinking_done"})
+        except asyncio.QueueFull:
+            pass
 
     async def _check_cancellation(self):
         """Check if analysis has been canceled in the DB."""

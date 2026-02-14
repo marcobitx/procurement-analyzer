@@ -47,8 +47,15 @@ class DocumentType(str, Enum):
 
 class ProcuringOrganization(BaseModel):
     name: Optional[str] = Field(None, description="Perkančiosios organizacijos pavadinimas")
-    code: Optional[str] = Field(None, description="Įmonės kodas")
-    contact: Optional[str] = Field(None, description="Kontaktinė informacija")
+    code: Optional[str] = Field(None, description="Įmonės/įstaigos kodas")
+    address: Optional[str] = Field(None, description="Adresas")
+    city: Optional[str] = Field(None, description="Miestas")
+    country: Optional[str] = Field(None, description="Šalis")
+    contact_person: Optional[str] = Field(None, description="Kontaktinis asmuo")
+    phone: Optional[str] = Field(None, description="Telefono numeris")
+    email: Optional[str] = Field(None, description="El. paštas")
+    website: Optional[str] = Field(None, description="Svetainė / profilis CVP IS")
+    organization_type: Optional[str] = Field(None, description="Organizacijos tipas (ministerija, savivaldybė, VĮ, AB, etc.)")
 
 
 class EstimatedValue(BaseModel):
@@ -60,14 +67,23 @@ class EstimatedValue(BaseModel):
 
 class Deadlines(BaseModel):
     submission_deadline: Optional[str] = Field(
-        None, description="Pasiūlymų pateikimo terminas (ISO date)"
+        None, description="Pasiūlymų pateikimo terminas (ISO date arba tekstinis aprašymas)"
     )
     questions_deadline: Optional[str] = Field(
-        None, description="Klausimų pateikimo terminas (ISO date)"
+        None, description="Klausimų pateikimo terminas (ISO date arba tekstinis aprašymas)"
     )
-    contract_duration: Optional[str] = Field(None, description="Sutarties trukmė")
+    contract_duration: Optional[str] = Field(None, description="Sutarties trukmė (pvz. '24 mėn.')")
     execution_deadline: Optional[str] = Field(
-        None, description="Darbų atlikimo terminas (ISO date)"
+        None, description="Darbų/prekių pristatymo terminas (ISO date arba tekstinis aprašymas)"
+    )
+    offer_validity: Optional[str] = Field(
+        None, description="Pasiūlymo galiojimo terminas (pvz. '90 dienų', '180 dienų')"
+    )
+    contract_start: Optional[str] = Field(
+        None, description="Sutarties įsigaliojimo data/sąlyga"
+    )
+    extension_options: Optional[str] = Field(
+        None, description="Sutarties pratęsimo galimybės ir sąlygos"
     )
 
 
@@ -78,16 +94,54 @@ class EvaluationCriterion(BaseModel):
 
 
 class QualificationRequirements(BaseModel):
-    financial: list[str] = Field(default_factory=list, description="Finansiniai reikalavimai")
-    technical: list[str] = Field(default_factory=list, description="Techniniai reikalavimai")
-    experience: list[str] = Field(default_factory=list, description="Patirties reikalavimai")
-    other: list[str] = Field(default_factory=list, description="Kiti reikalavimai")
+    financial: list[str] = Field(default_factory=list, description="Finansiniai/ekonominiai pajėgumo reikalavimai (apyvarta, draudimas, etc.)")
+    technical: list[str] = Field(default_factory=list, description="Techniniai ir profesiniai pajėgumo reikalavimai")
+    experience: list[str] = Field(default_factory=list, description="Patirties reikalavimai (sutartys, projektai, metai)")
+    personnel: list[str] = Field(default_factory=list, description="Reikalavimai personalui/specialistams (kvalifikacija, sertifikatai)")
+    exclusion_grounds: list[str] = Field(default_factory=list, description="Pašalinimo pagrindai (VPĮ 46 str., teistumas, mokesčiai, etc.)")
+    required_documents: list[str] = Field(default_factory=list, description="Reikalaujami pateikti dokumentai (ESPD, pažymos, sertifikatai)")
+    other: list[str] = Field(default_factory=list, description="Kiti kvalifikacijos reikalavimai")
+
+
+class FinancialTerms(BaseModel):
+    payment_terms: Optional[str] = Field(None, description="Mokėjimo sąlygos ir terminai")
+    advance_payment: Optional[str] = Field(None, description="Avansinis mokėjimas (dydis, sąlygos)")
+    guarantee_requirements: Optional[str] = Field(None, description="Garantijų reikalavimai (pasiūlymo, sutarties vykdymo)")
+    guarantee_amount: Optional[str] = Field(None, description="Garantijos dydis (suma arba procentas)")
+    penalty_clauses: list[str] = Field(default_factory=list, description="Delspinigiai, baudos, netesybos")
+    price_adjustment: Optional[str] = Field(None, description="Kainos keitimo sąlygos (indeksavimas, perskaičiavimas)")
+    insurance_requirements: Optional[str] = Field(None, description="Draudimo reikalavimai")
+    currency: str = Field("EUR", description="Valiuta")
+
+
+class SubmissionRequirements(BaseModel):
+    submission_method: Optional[str] = Field(None, description="Pateikimo būdas (CVP IS, el. paštu, etc.)")
+    submission_language: list[str] = Field(default_factory=list, description="Leidžiamos kalbos")
+    required_format: Optional[str] = Field(None, description="Reikalaujamas formatas (elektroninis, popierinis)")
+    envelope_system: Optional[str] = Field(None, description="Vokelių sistema (jei taikoma)")
+    electronic_catalog: Optional[str] = Field(None, description="Elektroninio katalogo reikalavimai")
+    variants_allowed: Optional[bool] = Field(None, description="Ar leidžiami alternatyvūs pasiūlymai")
+    joint_bidding: Optional[str] = Field(None, description="Jungtinio pasiūlymo sąlygos")
+    subcontracting: Optional[str] = Field(None, description="Subrangos naudojimo sąlygos ir apribojimai")
+
+
+class RiskFactor(BaseModel):
+    risk: str = Field(..., description="Rizikos aprašymas")
+    severity: str = Field("medium", description="low | medium | high | critical")
+    recommendation: Optional[str] = Field(None, description="Rekomendacija rizikai valdyti")
+
+
+class TechnicalSpecification(BaseModel):
+    description: str = Field(..., description="Techninės specifikacijos punktas")
+    mandatory: bool = Field(True, description="Ar privalomas reikalavimas")
+    details: Optional[str] = Field(None, description="Papildomi detalės/paaiškinimai")
 
 
 class LotInfo(BaseModel):
     lot_number: int
     description: str
     estimated_value: Optional[float] = None
+    cpv_codes: list[str] = Field(default_factory=list, description="CPV kodai šiai daliai")
 
 
 class SourceDocument(BaseModel):
@@ -109,32 +163,93 @@ class ConfidenceNote(BaseModel):
     severity: str = Field("info", description="info | warning | conflict")
 
 
+class SourceReference(BaseModel):
+    field: str = Field(..., description="Kuriam laukui ši nuoroda (pvz. 'estimated_value', 'submission_deadline')")
+    quote: str = Field(..., description="Tiksli citata iš dokumento (1-3 sakiniai)")
+    page: Optional[int] = Field(None, description="Puslapio numeris (jei žinomas)")
+    section: Optional[str] = Field(None, description="Dokumento skyriaus pavadinimas")
+    filename: Optional[str] = Field(None, description="Šaltinio failo pavadinimas")
+
+
 # ── Main extraction result (per-document and aggregated) ───────────────────────
 
 
 class ExtractionResult(BaseModel):
     """Schema sent to LLM as structured output target for per-document extraction."""
 
-    project_summary: Optional[str] = Field(
-        None, description="2-3 sakiniai apie projekto esmę"
+    # ── Bendra informacija ──
+    project_title: Optional[str] = Field(
+        None, description="Trumpas pirkimo pavadinimas (pvz. 'Mokyklos pastato renovacija', 'IT įrangos pirkimas')"
     )
+    project_summary: Optional[str] = Field(
+        None, description="Išsamus projekto aprašymas: kas perkama, kokiam tikslui, kokia apimtis (5-10 sakinių)"
+    )
+    procurement_reference: Optional[str] = Field(
+        None, description="Pirkimo numeris/identifikatorius (CVP IS, TED, etc.)"
+    )
+    cpv_codes: list[str] = Field(
+        default_factory=list, description="CPV kodai su pavadinimais (pvz. '33141200-2 - Chirurginės adatos')"
+    )
+    nuts_codes: list[str] = Field(
+        default_factory=list, description="NUTS kodai pristatymo vietai"
+    )
+
+    # ── Organizacija ir pirkimo būdas ──
     procuring_organization: Optional[ProcuringOrganization] = None
     procurement_type: Optional[str] = Field(
-        None, description="Pirkimo būdas (atviras, ribotas, derybų, etc.)"
+        None, description="Pirkimo būdas (atviras konkursas, ribotas konkursas, derybų procedūra, etc.)"
     )
+    procurement_law: Optional[str] = Field(
+        None, description="Taikomas teisės aktas (VPĮ, KSPĮ, ES direktyva, etc.)"
+    )
+
+    # ── Vertė ir finansai ──
     estimated_value: Optional[EstimatedValue] = None
+    financial_terms: Optional[FinancialTerms] = None
+
+    # ── Terminai ──
     deadlines: Optional[Deadlines] = None
+
+    # ── Techninė specifikacija ir reikalavimai ──
     key_requirements: list[str] = Field(
         default_factory=list,
-        description="Pagrindiniai techniniai/funkciniai reikalavimai",
+        description="VISI pagrindiniai techniniai/funkciniai reikalavimai — kiekvienas punktas turi būti konkretus",
     )
+    technical_specifications: list[TechnicalSpecification] = Field(
+        default_factory=list,
+        description="Detalūs techninės specifikacijos reikalavimai su privalomumu",
+    )
+
+    # ── Kvalifikacija ir vertinimas ──
     qualification_requirements: Optional[QualificationRequirements] = None
     evaluation_criteria: list[EvaluationCriterion] = Field(default_factory=list)
+
+    # ── Pasiūlymo pateikimas ──
+    submission_requirements: Optional[SubmissionRequirements] = None
+
+    # ── Sutarties sąlygos ──
     restrictions_and_prohibitions: list[str] = Field(default_factory=list)
     lot_structure: Optional[list[LotInfo]] = None
     special_conditions: list[str] = Field(default_factory=list)
+
+    # ── Rizikos ir rekomendacijos ──
+    risk_factors: list[RiskFactor] = Field(
+        default_factory=list,
+        description="Identifikuotos rizikos tiekėjui (sudėtingi reikalavimai, trumpi terminai, didelės baudos, etc.)"
+    )
+
+    # ── Apeliavimas ir ginčai ──
+    appeal_procedures: Optional[str] = Field(
+        None, description="Apeliavimo/ginčų sprendimo procedūra ir institucija"
+    )
+
+    # ── Šaltiniai ──
     source_documents: list[SourceDocument] = Field(default_factory=list)
     confidence_notes: list[str] = Field(default_factory=list)
+    source_references: list[SourceReference] = Field(
+        default_factory=list,
+        description="Šaltinių nuorodos — kiekvienam ištrauktam duomeniui tiksli citata ir vieta dokumente",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -146,6 +261,9 @@ class ExtractionResult(BaseModel):
                 "key_requirements",
                 "restrictions_and_prohibitions",
                 "special_conditions",
+                "cpv_codes",
+                "nuts_codes",
+                "source_references",
             ]
             for field in list_fields:
                 v = values.get(field)
@@ -196,9 +314,18 @@ class AnalysisProgress(BaseModel):
 class AnalysisSummary(BaseModel):
     id: str
     created_at: datetime
+    completed_at: Optional[datetime] = None
     status: AnalysisStatus
     file_count: int
+    model: Optional[str] = None
+    project_title: Optional[str] = None
     project_summary: Optional[str] = None
+    organization_name: Optional[str] = None
+    estimated_value: Optional[float] = None
+    currency: str = "EUR"
+    submission_deadline: Optional[str] = None
+    completeness_score: Optional[float] = None
+    procurement_type: Optional[str] = None
 
 
 class AnalysisDetail(BaseModel):

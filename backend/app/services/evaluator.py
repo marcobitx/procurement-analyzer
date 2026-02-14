@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 from app.models.schemas import QAEvaluation
 from app.prompts.evaluation import EVALUATION_SYSTEM, EVALUATION_USER
@@ -24,6 +24,7 @@ async def evaluate_report(
     documents: list[SourceDocument],
     llm: LLMClient,
     model: str,
+    on_thinking: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[QAEvaluation, dict]:
     """
     Evaluate report quality and completeness.
@@ -61,12 +62,13 @@ async def evaluate_report(
     )
 
     # Call LLM with thinking="medium" — QA is simpler, less accuracy needed
-    evaluation, usage = await llm.complete_structured(
+    evaluation, usage = await llm.complete_structured_streaming(
         system=EVALUATION_SYSTEM,
         user=user_prompt,
         response_schema=QAEvaluation,
         model=model,
         thinking="medium",
+        on_thinking=on_thinking,
     )
 
     logger.info(

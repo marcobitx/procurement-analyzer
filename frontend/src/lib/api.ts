@@ -22,6 +22,15 @@ export interface AnalysisSummary {
   model: string | null;
   file_count: number;
   created_at: string;
+  completed_at: string | null;
+  project_title: string | null;
+  project_summary: string | null;
+  organization_name: string | null;
+  estimated_value: number | null;
+  currency: string;
+  submission_deadline: string | null;
+  completeness_score: number | null;
+  procurement_type: string | null;
 }
 
 export interface SSEEvent {
@@ -131,6 +140,12 @@ export function streamProgress(id: string, onEvent: (e: SSEEvent) => void, onDon
     } catch { /* skip */ }
   });
 
+  es.addEventListener('thinking', (msg: any) => {
+    try {
+      onEvent({ event: 'thinking', data: JSON.parse(msg.data) });
+    } catch { /* skip */ }
+  });
+
   es.onerror = () => {
     es.close();
     onDone();
@@ -145,7 +160,7 @@ export async function* streamChat(id: string, question: string): AsyncGenerator<
   const res = await fetch(`${BASE}/analyze/${id}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ message: question }),
   });
   if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
 
@@ -163,10 +178,10 @@ export async function* streamChat(id: string, question: string): AsyncGenerator<
       if (line.startsWith('data: ')) {
         const raw = line.slice(6).trim();
         if (raw === '[DONE]') return;
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed.chunk) yield parsed.chunk;
-        } catch { /* skip */ }
+        let parsed;
+        try { parsed = JSON.parse(raw); } catch { continue; }
+        if (parsed.error) throw new Error(parsed.error);
+        if (parsed.chunk) yield parsed.chunk;
       }
     }
   }
@@ -198,6 +213,13 @@ export async function updateSettings(data: { default_model?: string; openrouter_
 
 export async function getModels(): Promise<ModelInfo[]> {
   const res = await fetch(`${BASE}/models`);
+  if (!res.ok) throw new Error(res.statusText);
+  const data = await res.json();
+  return data.models || [];
+}
+
+export async function searchAllModels(query: string): Promise<ModelInfo[]> {
+  const res = await fetch(`${BASE}/models/search?q=${encodeURIComponent(query)}`);
   if (!res.ok) throw new Error(res.statusText);
   const data = await res.json();
   return data.models || [];

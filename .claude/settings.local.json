@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__take_screenshot",
+      "Bash(bun run build:*)",
+      "Bash(curl:*)",
+      "mcp__chrome-devtools__select_page",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__wait_for",
+      "mcp__windows-mcp__Wait",
+      "mcp__windows-mcp__Snapshot",
+      "mcp__windows-mcp__Click",
+      "mcp__windows-mcp__App",
+      "mcp__windows-mcp__Type"
+    ]
+  }
+}

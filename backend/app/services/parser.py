@@ -32,28 +32,56 @@ _converter = None
 def _get_converter():
     """Lazily initialize and cache the Docling DocumentConverter.
 
-    Configured with do_ocr=False for PDF/image pipelines to avoid loading
-    heavy RapidOCR models (~10s per init). Procurement documents are
-    text-based PDFs — OCR is not needed.
+    Config: OCR off, table mode FAST, timeout from settings,
+    force_backend_text from settings, threads matched to CPU cores.
     """
     global _converter
     if _converter is None:
+        import os
+
         from docling.datamodel.base_models import InputFormat
-        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.datamodel.pipeline_options import (
+            AcceleratorOptions,
+            PdfPipelineOptions,
+            TableFormerMode,
+            TableStructureOptions,
+        )
         from docling.document_converter import (
             DocumentConverter,
             ImageFormatOption,
             PdfFormatOption,
         )
 
-        # Disable OCR to skip RapidOCR model loading
-        pdf_opts = PdfPipelineOptions(do_ocr=False)
+        from app.config import get_settings
+
+        settings = get_settings()
+        cpu_threads = os.cpu_count() or 4
+
+        table_opts = TableStructureOptions(mode=TableFormerMode.FAST)
+        accel_opts = AcceleratorOptions(num_threads=cpu_threads, device="cpu")
+
+        pdf_opts = PdfPipelineOptions(
+            do_ocr=False,
+            do_table_structure=True,
+            table_structure_options=table_opts,
+            document_timeout=settings.parser_doc_timeout,
+            force_backend_text=settings.parser_force_backend_text,
+            accelerator_options=accel_opts,
+        )
 
         _converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts),
                 InputFormat.IMAGE: ImageFormatOption(pipeline_options=pdf_opts),
             }
+        )
+
+        logger.info(
+            "Docling converter initialized: table_mode=fast, timeout=%ds, "
+            "force_backend_text=%s, threads=%d",
+            settings.parser_doc_timeout,
+            settings.parser_force_backend_text,
+            cpu_threads,
         )
     return _converter
 
@@ -89,17 +117,13 @@ async def parse_document(file_path: Path, filename: str) -> ParsedDocument:
 
         # Docling is CPU-bound — run in a thread to avoid blocking the event loop
         loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None, converter.convert, str(file_path)
-        )
+        result = await loop.run_in_executor(None, converter.convert, str(file_path))
 
         # Check conversion status
         from docling.datamodel.base_models import ConversionStatus
 
         if result.status == ConversionStatus.FAILURE:
-            error_msgs = "; ".join(
-                str(e) for e in (result.errors or [])
-            )
+            error_msgs = "; ".join(str(e) for e in (result.errors or []))
             error_content = (
                 f"[ERROR] Failed to parse {filename}: {error_msgs or 'unknown error'}"
             )
@@ -167,26 +191,42 @@ async def parse_document(file_path: Path, filename: str) -> ParsedDocument:
 async def parse_all(
     file_paths: list[tuple[Path, str]],
     on_parsed: Optional[Callable[[ParsedDocument], None]] = None,
+    max_concurrent: int | None = None,
 ) -> list[ParsedDocument]:
-    """Parse all documents sequentially.
+    """Parse all documents with bounded concurrency.
 
-    Processes files one by one (Docling is CPU-bound, parallel wouldn't help).
+    Uses asyncio.Semaphore to limit parallel parsing (CPU-bound work).
     Calls on_parsed callback after each file for SSE streaming progress.
     """
-    results: list[ParsedDocument] = []
+    if not file_paths:
+        return []
 
-    for file_path, filename in file_paths:
-        logger.info(
-            "Parsing document %d/%d: %s",
-            len(results) + 1,
-            len(file_paths),
-            filename,
-        )
-        parsed = await parse_document(file_path, filename)
-        results.append(parsed)
+    if max_concurrent is None:
+        from app.config import get_settings
 
-        if on_parsed is not None:
-            on_parsed(parsed)
+        max_concurrent = get_settings().parser_max_concurrent
+
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def _parse_one(
+        index: int, file_path: Path, filename: str
+    ) -> tuple[int, ParsedDocument]:
+        async with semaphore:
+            logger.info(
+                "Parsing document %d/%d: %s",
+                index + 1,
+                len(file_paths),
+                filename,
+            )
+            parsed = await parse_document(file_path, filename)
+            if on_parsed is not None:
+                on_parsed(parsed)
+            return (index, parsed)
+
+    tasks = [_parse_one(i, fp, fn) for i, (fp, fn) in enumerate(file_paths)]
+    indexed_results = await asyncio.gather(*tasks)
+    indexed_results_sorted = sorted(indexed_results, key=lambda x: x[0])
+    results = [doc for _, doc in indexed_results_sorted]
 
     logger.info(
         "Parsing complete: %d documents, %d total tokens",

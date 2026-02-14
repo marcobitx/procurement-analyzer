@@ -1,25 +1,40 @@
 // frontend/src/components/TopBar.tsx
-// Thin top bar — breadcrumb path + error banner
+// Thin top bar — interactive breadcrumb path + error banner
 // Always visible at the top of the main content area
 // Related: App.tsx, store.ts
 
-import { AlertTriangle, X, Upload, History, Settings as SettingsIcon, FileText, Cpu, XCircle } from 'lucide-react';
+import { AlertTriangle, X, ChevronRight, Home, XCircle } from 'lucide-react';
 import { appStore, useStore, type AppView } from '../lib/store';
 
 interface Props {
   currentView: AppView;
   error: string | null;
   onDismissError: () => void;
+  onNavigate: (view: AppView) => void;
   onCancel?: () => void;
 }
 
-const VIEW_META: Record<AppView, { label: string; icon: any; breadcrumb: string }> = {
-  upload: { label: 'Nauja analizė', icon: Upload, breadcrumb: 'Pradžia / Nauja analizė' },
-  analyzing: { label: 'Analizuojama', icon: Cpu, breadcrumb: 'Pradžia / Analizė' },
-  results: { label: 'Ataskaita', icon: FileText, breadcrumb: 'Pradžia / Ataskaita' },
-  history: { label: 'Istorija', icon: History, breadcrumb: 'Pradžia / Istorija' },
-  settings: { label: 'Nustatymai', icon: SettingsIcon, breadcrumb: 'Pradžia / Nustatymai' },
-};
+/** Breadcrumb trail segments per view */
+type BreadcrumbSegment = { label: string; view?: AppView };
+
+function getBreadcrumbs(view: AppView, reviewMode: boolean): BreadcrumbSegment[] {
+  switch (view) {
+    case 'upload':
+      return [{ label: 'Nauja analizė' }];
+    case 'analyzing':
+      return [{ label: 'Nauja analizė', view: 'upload' }, { label: 'Analizė' }];
+    case 'results':
+      return reviewMode
+        ? [{ label: 'Istorija', view: 'history' }, { label: 'Ataskaita' }]
+        : [{ label: 'Nauja analizė', view: 'upload' }, { label: 'Ataskaita' }];
+    case 'history':
+      return [{ label: 'Istorija' }];
+    case 'settings':
+      return [{ label: 'Nustatymai' }];
+    default:
+      return [{ label: 'Pradžia' }];
+  }
+}
 
 const STATUS_LABELS: Record<string, string> = {
   QUEUED: 'Laukiama eilėje',
@@ -38,20 +53,49 @@ function formatTime(sec: number) {
   return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`;
 }
 
-export default function TopBar({ currentView, error, onDismissError, onCancel }: Props) {
+export default function TopBar({ currentView, error, onDismissError, onNavigate, onCancel }: Props) {
   const state = useStore(appStore);
-  const meta = VIEW_META[currentView] || VIEW_META.upload;
   const status = state.analysisStatus;
+  const crumbs = getBreadcrumbs(currentView, state.reviewMode);
 
   return (
-    <header className="flex-shrink-0 border-b border-white/[0.04] bg-surface-950/20 backdrop-blur-md">
+    <header className="flex-shrink-0 border-b border-surface-700/50 bg-surface-950/20 backdrop-blur-md">
       <div className="flex items-center justify-between h-16 px-6 md:px-10">
-        {/* Left — breadcrumb path */}
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] text-surface-400 font-semibold tracking-tight uppercase letter-spacing-wider">
-            {meta.breadcrumb}
-          </span>
-        </div>
+        {/* Left — interactive breadcrumb */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-0 min-w-0">
+          {/* Home root */}
+          <button
+            onClick={() => onNavigate('upload')}
+            className="flex items-center gap-1 text-surface-500 hover:text-brand-400
+                       transition-colors duration-200 group shrink-0"
+            aria-label="Pradžia"
+          >
+            <Home className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" />
+          </button>
+
+          {/* Segments */}
+          {crumbs.map((seg, i) => {
+            const isLast = i === crumbs.length - 1;
+            return (
+              <span key={i} className="flex items-center gap-0 min-w-0">
+                <ChevronRight className="w-3 h-3 text-surface-700 mx-1.5 shrink-0" />
+                {isLast ? (
+                  <span className="text-[13px] font-semibold text-surface-200 tracking-tight truncate">
+                    {seg.label}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => seg.view && onNavigate(seg.view)}
+                    className="text-[13px] font-medium text-surface-500 hover:text-brand-400
+                               transition-colors duration-200 tracking-tight truncate"
+                  >
+                    {seg.label}
+                  </button>
+                )}
+              </span>
+            );
+          })}
+        </nav>
 
         {/* Center — Analysis Status (Sleek Aesthetic) */}
         {status && (
@@ -63,13 +107,26 @@ export default function TopBar({ currentView, error, onDismissError, onCancel }:
                   {STATUS_LABELS[status] || 'Analizuojama...'}
                 </span>
               </div>
-              <div className="w-px h-3 bg-white/[0.1]" />
+              <div className="w-px h-3 bg-surface-700/50" />
               <span className="text-[10px] font-mono font-bold text-surface-500 tracking-widest whitespace-nowrap">
                 {formatTime(state.analysisElapsedSec)}
               </span>
             </div>
             
-            <div className="w-64 h-[2px] bg-white/[0.04] rounded-full overflow-hidden relative">
+            <div
+              className="w-64 h-[2px] bg-surface-700/30 rounded-full overflow-hidden relative"
+              role="progressbar"
+              aria-valuenow={
+                status === 'COMPLETED' ? 100 :
+                status === 'EVALUATING' ? 80 :
+                status === 'AGGREGATING' ? 60 :
+                status === 'EXTRACTING' ? 40 :
+                status === 'PARSING' ? 20 : 5
+              }
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Analizės progresas"
+            >
                <div 
                  className="absolute inset-0 bg-brand-500/10 blur-[2px]"
                  style={{ 
@@ -96,14 +153,14 @@ export default function TopBar({ currentView, error, onDismissError, onCancel }:
 
         {/* Right — actions */}
         <div className="flex items-center gap-4">
-          {currentView === 'analyzing' && !error && onCancel && (
+          {status && !['COMPLETED', 'FAILED', 'CANCELED'].includes(status) && !error && onCancel && (
             <button
               onClick={onCancel}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
                        bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300
-                       border border-red-500/10 transition-all text-xs font-bold uppercase tracking-wide"
+                       border border-red-500/10 transition-all text-[12px] font-semibold"
             >
-              <XCircle className="w-4 h-4" />
+              <XCircle className="w-3.5 h-3.5" />
               Nutraukti
             </button>
           )}

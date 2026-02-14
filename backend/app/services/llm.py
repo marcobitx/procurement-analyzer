@@ -6,7 +6,7 @@
 import asyncio
 import json
 import logging
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Awaitable, Callable, Optional
 
 import httpx
 from pydantic import BaseModel
@@ -236,7 +236,7 @@ class LLMClient:
         thinking: str = "off",
         temperature: float | None = None,
         response_format: dict | None = None,
-        max_tokens: int = 16000,
+        max_tokens: int = 32000,
     ) -> dict:
         """Build the request body for a chat completion."""
         body: dict = {
@@ -351,6 +351,156 @@ class LLMClient:
         logger.debug("Usage: %s", usage)
 
         return parsed, usage
+
+    async def complete_structured_streaming(
+        self,
+        system: str,
+        user: str,
+        response_schema: type[BaseModel],
+        model: str | None = None,
+        temperature: float = 0.1,
+        thinking: str = "off",
+        on_thinking: Callable[[str], Awaitable[None]] | None = None,
+    ) -> tuple[BaseModel, dict]:
+        """
+        Streaming structured output completion with live thinking token callback.
+
+        Same contract as complete_structured() — returns (parsed_model, usage_dict).
+        Streams the response via SSE, calling on_thinking() for each reasoning chunk.
+        Falls back to non-streaming complete_structured() on any streaming error.
+        """
+        if on_thinking is None:
+            return await self.complete_structured(
+                system=system, user=user, response_schema=response_schema,
+                model=model, temperature=temperature, thinking=thinking,
+            )
+
+        raw_schema = response_schema.model_json_schema()
+        cleaned_schema = _clean_json_schema(raw_schema)
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": response_schema.__name__,
+                "schema": cleaned_schema,
+            },
+        }
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
+        body = self._build_body(
+            messages=messages,
+            model=model,
+            thinking=thinking,
+            temperature=temperature,
+            response_format=response_format,
+        )
+        body["stream"] = True
+
+        logger.debug(
+            "Streaming structured completion: model=%s schema=%s",
+            body["model"], response_schema.__name__,
+        )
+
+        try:
+            full_content = ""
+            usage = {"input_tokens": 0, "output_tokens": 0}
+
+            async with self._client.stream(
+                "POST", "/chat/completions", json=body,
+            ) as response:
+                if response.status_code != 200:
+                    body_text = await response.aread()
+                    logger.warning(
+                        "Streaming request failed (%d), falling back to non-streaming",
+                        response.status_code,
+                    )
+                    return await self.complete_structured(
+                        system=system, user=user, response_schema=response_schema,
+                        model=model, temperature=temperature, thinking=thinking,
+                    )
+
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+
+                    payload = line[6:].strip()
+                    if payload == "[DONE]":
+                        break
+
+                    try:
+                        chunk = json.loads(payload)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+
+                        # Reasoning / thinking tokens
+                        reasoning = (
+                            delta.get("reasoning")
+                            or delta.get("reasoning_content")
+                            or ""
+                        )
+                        if reasoning and on_thinking:
+                            try:
+                                await on_thinking(reasoning)
+                            except Exception:
+                                pass  # never let callback errors kill the stream
+
+                        # Content tokens — accumulate for final parse
+                        content = delta.get("content") or ""
+                        if content:
+                            full_content += content
+
+                        # Usage from final chunk
+                        chunk_usage = chunk.get("usage")
+                        if chunk_usage:
+                            usage["input_tokens"] = chunk_usage.get("prompt_tokens", 0)
+                            usage["output_tokens"] = chunk_usage.get("completion_tokens", 0)
+
+                    except (json.JSONDecodeError, IndexError, KeyError) as exc:
+                        logger.debug("Skipping unparseable SSE chunk: %s (%s)", payload[:100], exc)
+                        continue
+
+            if not full_content:
+                logger.warning("No content accumulated from streaming, falling back")
+                return await self.complete_structured(
+                    system=system, user=user, response_schema=response_schema,
+                    model=model, temperature=temperature, thinking=thinking,
+                )
+
+            # Parse accumulated content
+            content_clean = _extract_json(full_content)
+            try:
+                parsed = response_schema.model_validate_json(content_clean)
+            except Exception as first_exc:
+                logger.warning(
+                    "Streaming parse failed for %s, retrying with correction: %s",
+                    response_schema.__name__, str(first_exc)[:200],
+                )
+                parsed, correction_usage = await self._retry_with_correction(
+                    original_content=full_content,
+                    response_schema=response_schema,
+                    cleaned_schema=cleaned_schema,
+                    model=model,
+                    first_exc=first_exc,
+                )
+                usage["input_tokens"] += correction_usage.get("input_tokens", 0)
+                usage["output_tokens"] += correction_usage.get("output_tokens", 0)
+                return parsed, usage
+
+            logger.debug("Streaming structured usage: %s", usage)
+            return parsed, usage
+
+        except Exception as exc:
+            logger.warning(
+                "Streaming structured completion failed (%s), falling back to non-streaming",
+                exc,
+            )
+            return await self.complete_structured(
+                system=system, user=user, response_schema=response_schema,
+                model=model, temperature=temperature, thinking=thinking,
+            )
 
     async def _retry_with_correction(
         self,
@@ -542,8 +692,9 @@ class LLMClient:
 
             pricing = m.get("pricing", {})
             try:
-                prompt_price = float(pricing.get("prompt", "0"))
-                completion_price = float(pricing.get("completion", "0"))
+                # OpenRouter returns per-token prices; convert to per-million
+                prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
+                completion_price = float(pricing.get("completion", "0")) * 1_000_000
             except (ValueError, TypeError):
                 prompt_price = 0.0
                 completion_price = 0.0
@@ -552,8 +703,8 @@ class LLMClient:
                 "id": model_id,
                 "name": m.get("name", model_id),
                 "context_length": m.get("context_length", 0),
-                "pricing_prompt": prompt_price,
-                "pricing_completion": completion_price,
+                "pricing_prompt": round(prompt_price, 2),
+                "pricing_completion": round(completion_price, 2),
             })
 
         # Ensure all mandatory models are present (fallback if not in OpenRouter list yet)
@@ -586,6 +737,48 @@ class LLMClient:
 
         logger.debug("Found %d models (including mandatory check)", len(result))
         return result
+
+    async def list_all_models(self, query: str = "") -> list[dict]:
+        """
+        Fetch ALL models from OpenRouter (no structured-output filter).
+        Optionally filter by search query matching name or ID.
+        Returns top 50 matches sorted by name.
+        """
+        logger.debug("Searching all OpenRouter models, query=%r", query)
+
+        response = await self._request_with_retry("GET", "/models")
+        data = response.json()
+
+        models_raw = data.get("data", [])
+        result: list[dict] = []
+        q = query.lower().strip()
+
+        for m in models_raw:
+            model_id = m.get("id", "")
+            model_name = m.get("name", model_id)
+
+            if q and q not in model_id.lower() and q not in model_name.lower():
+                continue
+
+            pricing = m.get("pricing", {})
+            try:
+                # OpenRouter returns per-token prices; convert to per-million
+                prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
+                completion_price = float(pricing.get("completion", "0")) * 1_000_000
+            except (ValueError, TypeError):
+                prompt_price = 0.0
+                completion_price = 0.0
+
+            result.append({
+                "id": model_id,
+                "name": model_name,
+                "context_length": m.get("context_length", 0),
+                "pricing_prompt": round(prompt_price, 2),
+                "pricing_completion": round(completion_price, 2),
+            })
+
+        result.sort(key=lambda x: x["name"])
+        return result[:50]
 
     async def close(self):
         """Close httpx client."""

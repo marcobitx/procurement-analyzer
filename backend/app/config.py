@@ -21,6 +21,9 @@ class AppSettings(BaseSettings):
     max_files: int = 20
     max_concurrent_analyses: int = 5
     temp_dir: str = "/tmp/procurement-analyzer"
+    parser_force_backend_text: bool = False
+    parser_doc_timeout: int = 120
+    parser_max_concurrent: int = 2
 
 
 @lru_cache

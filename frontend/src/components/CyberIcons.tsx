@@ -32,8 +32,8 @@ export const CyberHistoryIcon = ({ className = 'w-5 h-5' }: { className?: string
         <path d="M21 12C21 16.9706 16.9706 21 12 21" stroke="url(#prism-grad)" strokeWidth="2" strokeLinecap="round" />
         <defs>
             <linearGradient id="prism-grad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#06b6d4" />
-                <stop offset="100%" stopColor="#8b5cf6" />
+                <stop offset="0%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#f97316" />
             </linearGradient>
         </defs>
     </svg>

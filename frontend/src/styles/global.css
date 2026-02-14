@@ -1,6 +1,6 @@
 /* frontend/src/styles/global.css */
-/* Procurement Analyzer — "Titanium Enterprise" design system */
-/* Professional monochromatic layering, Indigo accents, clean precision typography */
+/* Procurement Analyzer — "Warm Enterprise" design system */
+/* Warm stone surfaces, amber accents — Claude/OpenAI/Databricks inspired */
 
 @tailwind base;
 @tailwind components;
@@ -23,8 +23,9 @@
 
   body {
     @apply bg-surface-950 text-surface-200 font-sans min-h-screen relative overflow-x-hidden;
-    background-image: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.03) 0, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.02) 0, transparent 50%);
+    background-image: radial-gradient(at 0% 0%, rgba(210, 120, 80, 0.08) 0, transparent 50%),
+      radial-gradient(at 100% 80%, rgba(180, 90, 50, 0.06) 0, transparent 50%),
+      radial-gradient(at 50% 30%, rgba(245, 158, 11, 0.03) 0, transparent 60%);
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
@@ -70,61 +71,59 @@
   /* ── Enterprise Card — Professional Layering ───────────────────── */
 
   .enterprise-card {
-    @apply bg-surface-900/60 backdrop-blur-xl rounded-2xl;
-    @apply border border-white/[0.05];
+    @apply bg-surface-900/70 backdrop-blur-xl rounded-2xl;
+    @apply border border-surface-700/40;
     @apply shadow-sm;
+    position: relative;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  /* Lift card above siblings when it contains an open dropdown */
+  .enterprise-card:focus-within {
+    z-index: 20;
+  }
+
   .enterprise-card-hover:hover {
-    @apply border-white/[0.12] bg-surface-800/60 -translate-y-1 shadow-2xl shadow-black/40;
+    @apply border-surface-600/60 bg-surface-800/70 -translate-y-1 shadow-2xl shadow-black/40;
   }
 
   .enterprise-card-active {
     @apply enterprise-card ring-1 ring-brand-500/20 border-brand-500/10;
   }
 
-  /* ── Buttons — Professional Indigo ──────────────────────────────── */
+  /* ── Buttons — Professional Amber ──────────────────────────────── */
 
   .btn-professional {
-    @apply relative flex items-center justify-center gap-2;
-    @apply bg-brand-600 text-white font-bold;
-    @apply px-5 py-2.5 rounded-xl;
+    @apply relative flex items-center justify-center gap-1.5;
+    @apply bg-brand-600 text-white font-semibold text-[13px];
+    @apply px-3.5 py-1.5 rounded-lg;
     @apply transition-all duration-200;
-    @apply hover:bg-brand-500 hover:shadow-lg hover:shadow-brand-500/10 active:scale-[0.98];
+    @apply hover:bg-brand-500 hover:shadow-md hover:shadow-brand-500/10 active:scale-[0.98];
     @apply disabled:opacity-40 disabled:cursor-not-allowed;
     letter-spacing: -0.01em;
   }
 
   .btn-secondary-professional {
-    @apply flex items-center justify-center gap-2;
-    @apply bg-surface-800 text-surface-100 font-bold;
-    @apply px-5 py-2.5 rounded-xl;
-    @apply border border-white/[0.04] transition-all duration-200;
-    @apply hover:bg-surface-700 hover:text-white hover:border-white/[0.1];
+    @apply flex items-center justify-center gap-1.5;
+    @apply bg-surface-800/80 text-surface-200 font-semibold text-[13px];
+    @apply px-3.5 py-1.5 rounded-lg;
+    @apply border border-surface-700/30 transition-all duration-200;
+    @apply hover:bg-surface-700/80 hover:text-white hover:border-surface-600/50;
     @apply active:scale-[0.98];
   }
 
-  .btn-primary {
-    @apply btn-professional;
-  }
-
-  .btn-secondary {
-    @apply btn-secondary-professional;
-  }
-
   .btn-ghost {
-    @apply text-surface-400 font-bold;
-    @apply px-5 py-2.5 rounded-lg;
+    @apply text-surface-400 font-medium text-[13px];
+    @apply px-3 py-1.5 rounded-lg;
     @apply transition-all duration-200;
-    @apply hover:text-white hover:bg-white/[0.04];
+    @apply hover:text-surface-200 hover:bg-surface-800/30;
     @apply active:scale-[0.98];
   }
 
   /* ── Inputs ───────────────────────────────────────────────────── */
 
   .input-field {
-    @apply bg-surface-950 border border-white/[0.06] rounded-xl px-4 py-2.5;
+    @apply bg-surface-950 border border-surface-700/40 rounded-lg px-3.5 py-2;
     @apply text-surface-50 placeholder-surface-500 text-[14px];
     @apply transition-all duration-200;
     @apply focus:outline-none focus:border-brand-500/50 focus:ring-4 focus:ring-brand-500/5;
@@ -153,11 +152,21 @@
     @apply badge bg-red-500/10 text-red-400 border border-red-500/20;
   }
 
+  .badge-neutral {
+    @apply badge bg-surface-500/10 text-surface-400 border border-surface-500/20;
+  }
+
   /* ── Section Dividers ────────────────────────────────────────────── */
 
   .divider {
     @apply border-0 h-px w-full;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06) 50%, transparent);
+    background: linear-gradient(90deg,
+      transparent,
+      rgba(168, 162, 158, 0.20) 20%,
+      rgba(245, 158, 11, 0.15) 50%,
+      rgba(168, 162, 158, 0.20) 80%,
+      transparent
+    );
   }
 
   /* ── Staggered Animations ────────────────────────────────────────── */
@@ -168,8 +177,127 @@
   }
 
   .bg-secondary {
-    @apply bg-surface-900/80 backdrop-blur-2xl;
+    @apply bg-surface-900/90 backdrop-blur-2xl;
   }
+
+  /* ── Cyber Card — Lighter translucent variant ──────────────── */
+
+  .cyber-card {
+    @apply bg-surface-900/50 backdrop-blur-xl rounded-2xl;
+    @apply border border-surface-700/30;
+    @apply shadow-sm;
+  }
+
+  /* ── Scrollbar Utilities ───────────────────────────────────── */
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(62, 51, 45, 0.8) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-surface-800 rounded-full;
+  }
+
+  /* ── Active Step Indicator — Concentric breathing rings ───── */
+
+  .active-step-indicator {
+    position: relative;
+  }
+  .active-step-indicator::before,
+  .active-step-indicator::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 1rem;
+    border: 1.5px solid rgba(245, 158, 11, 0.25);
+    animation: breatheRing 2s ease-in-out infinite;
+  }
+  .active-step-indicator::after {
+    inset: -8px;
+    border-color: rgba(245, 158, 11, 0.12);
+    animation-delay: 0.5s;
+  }
+
+  @keyframes breatheRing {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.04); }
+  }
+
+  /* ── Shimmer Text Effect ────────────────────────────────── */
+
+  .shimmer-text {
+    background: linear-gradient(
+      90deg,
+      #fcd34d 0%,
+      #fcd34d 40%,
+      #fff7ed 50%,
+      #fcd34d 60%,
+      #fcd34d 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerText 2s ease-in-out infinite;
+  }
+
+  @keyframes shimmerText {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  /* ── Snake Loading Animation ─────────────────────────────── */
+
+  .snake-trail {
+    animation: snakeMove 2.5s linear infinite;
+  }
+
+  .snake-head {
+    animation: snakeMove 2.5s linear infinite;
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
+  }
+
+  @keyframes snakeMove {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: -60; }
+  }
+
+  /* ── Marquee / Logo Carousel ───────────────────────────────── */
+
+  .marquee-track {
+    animation: marqueeScroll 35s linear infinite;
+    width: max-content;
+  }
+
+  @keyframes marqueeScroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ── Event Badge Colors ────────────────────────────────────── */
+
+  .event-badge-parse    { @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/20; }
+  .event-badge-extract  { @apply bg-amber-500/15 text-amber-400 border border-amber-500/20; }
+  .event-badge-aggregate { @apply bg-orange-500/15 text-orange-400 border border-orange-500/20; }
+  .event-badge-evaluate { @apply bg-violet-500/15 text-violet-400 border border-violet-500/20; }
+  .event-badge-metrics  { @apply bg-cyan-500/15 text-cyan-400 border border-cyan-500/20; }
+  .event-badge-error    { @apply bg-red-500/15 text-red-400 border border-red-500/20; }
+  .event-badge-status   { @apply bg-blue-500/15 text-blue-400 border border-blue-500/20; }
+  .event-badge-thinking { @apply bg-violet-500/15 text-violet-400 border border-violet-500/20; }
 }
 
 /* ── Utility Layer ───────────────────────────────────────────────────────── */

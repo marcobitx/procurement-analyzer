@@ -85,9 +85,46 @@ def _severity_color(severity: str) -> tuple:
     return mapping.get(severity.lower(), (0, 0, 0))
 
 
+def _risk_severity_color(severity: str) -> tuple:
+    """Return RGB tuple for risk severity."""
+    mapping = {
+        "low": (46, 125, 50),        # Green
+        "medium": (230, 81, 0),      # Orange
+        "high": (198, 40, 40),       # Red
+        "critical": (136, 14, 79),   # Dark magenta
+    }
+    return mapping.get(severity.lower(), (0, 0, 0))
+
+
 def _or_na(value: str | None) -> str:
     """Return value or 'Nenurodyta' if None/empty."""
     return value if value else _NOT_SPECIFIED
+
+
+def _format_org_contact(org) -> str:
+    """Format organization contact info from expanded fields."""
+    parts = []
+    if org.contact_person:
+        parts.append(org.contact_person)
+    if org.phone:
+        parts.append(f"Tel: {org.phone}")
+    if org.email:
+        parts.append(f"El. paštas: {org.email}")
+    if org.website:
+        parts.append(f"Svetainė: {org.website}")
+    return "; ".join(parts) if parts else _NOT_SPECIFIED
+
+
+def _format_org_address(org) -> str:
+    """Format organization address from expanded fields."""
+    parts = []
+    if org.address:
+        parts.append(org.address)
+    if org.city:
+        parts.append(org.city)
+    if org.country:
+        parts.append(org.country)
+    return ", ".join(parts) if parts else _NOT_SPECIFIED
 
 
 def _parse_confidence_notes(notes: list) -> list[ConfidenceNote]:
@@ -181,6 +218,15 @@ async def export_pdf(
     )
     styles.add(
         ParagraphStyle(
+            "Heading3LT",
+            parent=styles["Heading3"],
+            fontSize=11,
+            spaceBefore=8,
+            spaceAfter=4,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
             "BulletLT",
             parent=styles["Normal"],
             leftIndent=20,
@@ -201,6 +247,27 @@ async def export_pdf(
 
     elements = []
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    section = 0
+
+    def _heading(title: str):
+        nonlocal section
+        section += 1
+        elements.append(Paragraph(f"{section}. {title}", styles["Heading2LT"]))
+
+    def _subheading(title: str):
+        elements.append(Paragraph(title, styles["Heading3LT"]))
+
+    def _text(text: str):
+        elements.append(Paragraph(text, styles["Normal"]))
+
+    def _bold_text(label: str, value: str):
+        elements.append(Paragraph(f"<b>{label}:</b> {value}", styles["Normal"]))
+
+    def _bullet(text: str):
+        elements.append(Paragraph(f"• {text}", styles["BulletLT"]))
+
+    def _spacer():
+        elements.append(Spacer(1, 3 * mm))
 
     # ── Title
     elements.append(Paragraph("Viešojo pirkimo analizė", styles["TitleLT"]))
@@ -210,117 +277,138 @@ async def export_pdf(
     elements.append(Paragraph(subtitle, styles["SubtitleLT"]))
     elements.append(Spacer(1, 6 * mm))
 
-    # ── 1. Projekto santrauka
-    elements.append(Paragraph("1. Projekto santrauka", styles["Heading2LT"]))
-    elements.append(Paragraph(_or_na(report.project_summary), styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
-
-    # ── 2. Perkančioji organizacija
-    elements.append(
-        Paragraph("2. Perkančioji organizacija", styles["Heading2LT"])
-    )
+    # ── 1. Pagrindinė informacija
+    _heading("Pagrindinė informacija")
+    if report.project_title:
+        _bold_text("Projekto pavadinimas", report.project_title)
     org = report.procuring_organization
-    if org:
-        elements.append(
-            Paragraph(f"<b>Pavadinimas:</b> {_or_na(org.name)}", styles["Normal"])
-        )
-        elements.append(
-            Paragraph(f"<b>Kodas:</b> {_or_na(org.code)}", styles["Normal"])
-        )
-        elements.append(
-            Paragraph(f"<b>Kontaktai:</b> {_or_na(org.contact)}", styles["Normal"])
-        )
-    else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
-
-    # ── 3. Pirkimo būdas
-    if report.procurement_type:
-        elements.append(Paragraph("3. Pirkimo būdas", styles["Heading2LT"]))
-        elements.append(Paragraph(report.procurement_type, styles["Normal"]))
-        elements.append(Spacer(1, 3 * mm))
-
-    # ── 4. Pirkimo vertė
-    elements.append(Paragraph("4. Pirkimo vertė", styles["Heading2LT"]))
-    elements.append(
-        Paragraph(_format_value(report.estimated_value), styles["Normal"])
-    )
-    elements.append(Spacer(1, 3 * mm))
-
-    # ── 5. Terminai
-    elements.append(Paragraph("5. Terminai", styles["Heading2LT"]))
+    if org and org.name:
+        _bold_text("Perkančioji organizacija", org.name)
+    _bold_text("Projekto vertė", _format_value(report.estimated_value))
     dl = report.deadlines
+    if dl and dl.submission_deadline:
+        _bold_text("Dokumentų pateikimo terminas", _format_date(dl.submission_deadline))
+    if report.procurement_reference:
+        _bold_text("CVP kodas", report.procurement_reference)
+    if report.cpv_codes:
+        _bold_text("CPV kodai", "; ".join(report.cpv_codes))
+    _spacer()
+
+    # ── 2. Projekto santrauka
+    _heading("Projekto santrauka")
+    _text(_or_na(report.project_summary))
+    if report.nuts_codes:
+        _bold_text("NUTS kodai", "; ".join(report.nuts_codes))
+    if report.procurement_law:
+        _bold_text("Teisės aktas", report.procurement_law)
+    _spacer()
+
+    # ── 3. Perkančioji organizacija
+    _heading("Perkančioji organizacija")
+    if org:
+        _bold_text("Pavadinimas", _or_na(org.name))
+        _bold_text("Kodas", _or_na(org.code))
+        if org.organization_type:
+            _bold_text("Tipas", org.organization_type)
+        _bold_text("Adresas", _format_org_address(org))
+        _bold_text("Kontaktai", _format_org_contact(org))
+    else:
+        _text(_NOT_SPECIFIED)
+    _spacer()
+
+    # ── 4. Pirkimo būdas
+    if report.procurement_type:
+        _heading("Pirkimo būdas")
+        _text(report.procurement_type)
+        _spacer()
+
+    # ── 5. Finansinės sąlygos
+    ft = report.financial_terms
+    if ft:
+        _heading("Finansinės sąlygos")
+        if ft.payment_terms:
+            _bold_text("Mokėjimo sąlygos", ft.payment_terms)
+        if ft.advance_payment:
+            _bold_text("Avansinis mokėjimas", ft.advance_payment)
+        if ft.guarantee_requirements:
+            _bold_text("Garantijos reikalavimai", ft.guarantee_requirements)
+        if ft.guarantee_amount:
+            _bold_text("Garantijos dydis", ft.guarantee_amount)
+        if ft.price_adjustment:
+            _bold_text("Kainos keitimo sąlygos", ft.price_adjustment)
+        if ft.insurance_requirements:
+            _bold_text("Draudimo reikalavimai", ft.insurance_requirements)
+        if ft.penalty_clauses:
+            _subheading("Baudos ir netesybos:")
+            for p in ft.penalty_clauses:
+                _bullet(p)
+        _spacer()
+
+    # ── 6. Terminai
+    _heading("Terminai")
     if dl:
-        elements.append(
-            Paragraph(
-                f"<b>Pasiūlymų pateikimas:</b> {_format_date(dl.submission_deadline)}",
-                styles["Normal"],
-            )
-        )
-        elements.append(
-            Paragraph(
-                f"<b>Klausimų pateikimas:</b> {_format_date(dl.questions_deadline)}",
-                styles["Normal"],
-            )
-        )
-        elements.append(
-            Paragraph(
-                f"<b>Sutarties trukmė:</b> {_or_na(dl.contract_duration)}",
-                styles["Normal"],
-            )
-        )
-        elements.append(
-            Paragraph(
-                f"<b>Darbų atlikimas:</b> {_format_date(dl.execution_deadline)}",
-                styles["Normal"],
-            )
-        )
+        _bold_text("Pasiūlymų pateikimas", _format_date(dl.submission_deadline))
+        _bold_text("Klausimų pateikimas", _format_date(dl.questions_deadline))
+        _bold_text("Sutarties trukmė", _or_na(dl.contract_duration))
+        _bold_text("Darbų atlikimas", _format_date(dl.execution_deadline))
+        if dl.offer_validity:
+            _bold_text("Pasiūlymo galiojimas", dl.offer_validity)
+        if dl.contract_start:
+            _bold_text("Sutarties pradžia", dl.contract_start)
+        if dl.extension_options:
+            _bold_text("Pratęsimo galimybės", dl.extension_options)
     else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _text(_NOT_SPECIFIED)
+    _spacer()
 
-    # ── 6. Pagrindiniai reikalavimai
-    elements.append(
-        Paragraph("6. Pagrindiniai reikalavimai", styles["Heading2LT"])
-    )
-    if report.key_requirements:
+    # ── 7. Techninė specifikacija
+    _heading("Techninė specifikacija")
+    if report.technical_specifications:
+        for ts in report.technical_specifications:
+            mandatory_tag = "PRIVALOMA" if ts.mandatory else "PAGEIDAUJAMA"
+            _bullet(f"[{mandatory_tag}] {ts.description}")
+            if ts.details:
+                elements.append(
+                    Paragraph(f"    ↳ {ts.details}", styles["BulletLT"])
+                )
+    elif report.key_requirements:
         for req in report.key_requirements:
-            elements.append(
-                Paragraph(f"• {req}", styles["BulletLT"])
-            )
+            _bullet(req)
     else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _text(_NOT_SPECIFIED)
+    _spacer()
 
-    # ── 7. Kvalifikacijos reikalavimai
-    elements.append(
-        Paragraph("7. Kvalifikacijos reikalavimai", styles["Heading2LT"])
-    )
+    # ── 8. Pagrindiniai reikalavimai (if both exist)
+    if report.technical_specifications and report.key_requirements:
+        _heading("Kiti pagrindiniai reikalavimai")
+        for req in report.key_requirements:
+            _bullet(req)
+        _spacer()
+
+    # ── 9. Kvalifikacijos reikalavimai
+    _heading("Kvalifikacijos reikalavimai")
     qr = report.qualification_requirements
     if qr:
         for group_name, group_label in [
             ("financial", "Finansiniai"),
             ("technical", "Techniniai"),
             ("experience", "Patirties"),
+            ("personnel", "Personalo"),
+            ("exclusion_grounds", "Pašalinimo pagrindai"),
+            ("required_documents", "Reikalaujami dokumentai"),
             ("other", "Kiti"),
         ]:
             items = getattr(qr, group_name, [])
             if items:
-                elements.append(
-                    Paragraph(f"<b>{group_label}:</b>", styles["Normal"])
-                )
+                _subheading(f"{group_label}:")
                 for item in items:
-                    elements.append(
-                        Paragraph(f"• {item}", styles["BulletLT"])
-                    )
+                    _bullet(item)
     else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _text(_NOT_SPECIFIED)
+    _spacer()
 
-    # ── 8. Vertinimo kriterijai (TABLE)
-    elements.append(
-        Paragraph("8. Vertinimo kriterijai", styles["Heading2LT"])
-    )
+    # ── 10. Vertinimo kriterijai (TABLE)
+    _heading("Vertinimo kriterijai")
     if report.evaluation_criteria:
         table_data = [["Kriterijus", "Svoris (%)", "Aprašymas"]]
         for ec in report.evaluation_criteria:
@@ -349,12 +437,61 @@ async def export_pdf(
         )
         elements.append(table)
     else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _text(_NOT_SPECIFIED)
+    _spacer()
 
-    # ── 9. Lotai (TABLE)
-    elements.append(Paragraph("9. Lotai", styles["Heading2LT"]))
+    # ── 11. Pasiūlymo pateikimas
+    sr = report.submission_requirements
+    if sr:
+        _heading("Pasiūlymo pateikimas")
+        if sr.submission_method:
+            _bold_text("Pateikimo būdas", sr.submission_method)
+        if sr.submission_language:
+            _bold_text("Kalbos", ", ".join(sr.submission_language))
+        if sr.required_format:
+            _bold_text("Formatas", sr.required_format)
+        if sr.envelope_system:
+            _bold_text("Vokelių sistema", sr.envelope_system)
+        if sr.variants_allowed is not None:
+            _bold_text("Alternatyvūs pasiūlymai", "Leidžiami" if sr.variants_allowed else "Neleidžiami")
+        if sr.joint_bidding:
+            _bold_text("Jungtiniai pasiūlymai", sr.joint_bidding)
+        if sr.subcontracting:
+            _bold_text("Subrangos sąlygos", sr.subcontracting)
+        _spacer()
+
+    # ── 12. Rizikos tiekėjui (TABLE)
+    if report.risk_factors:
+        _heading("Rizikos tiekėjui")
+        table_data = [["Rizika", "Lygis", "Rekomendacija"]]
+        for rf in report.risk_factors:
+            table_data.append([rf.risk, rf.severity.upper(), _or_na(rf.recommendation)])
+
+        col_widths = [180, 55, 235]
+        table = Table(table_data, colWidths=col_widths)
+
+        # Color-code severity in the table
+        table_style_cmds = [
+            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#C62828")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),
+            ("FONTSIZE", (0, 1), (-1, -1), 8),
+            ("ALIGN", (1, 0), (1, -1), "CENTER"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, HexColor("#FFF3F3")]),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]
+        table.setStyle(TableStyle(table_style_cmds))
+        elements.append(table)
+        _spacer()
+
+    # ── 13. Lotai (TABLE)
     if report.lot_structure:
+        _heading("Lotai")
         lot_data = [["Nr.", "Aprašymas", "Vertė (EUR)"]]
         for lot in report.lot_structure:
             val = f"{lot.estimated_value:,.2f}" if lot.estimated_value is not None else "-"
@@ -379,36 +516,34 @@ async def export_pdf(
             )
         )
         elements.append(lot_table)
-    else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _spacer()
 
-    # ── 10. Specialios sąlygos
-    elements.append(
-        Paragraph("10. Specialios sąlygos", styles["Heading2LT"])
-    )
+    # ── 14. Specialios sąlygos
+    _heading("Specialios sąlygos")
     if report.special_conditions:
         for cond in report.special_conditions:
-            elements.append(Paragraph(f"• {cond}", styles["BulletLT"]))
+            _bullet(cond)
     else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _text(_NOT_SPECIFIED)
+    _spacer()
 
-    # ── 11. Apribojimai ir draudimai
-    elements.append(
-        Paragraph("11. Apribojimai ir draudimai", styles["Heading2LT"])
-    )
+    # ── 15. Apribojimai ir draudimai
+    _heading("Apribojimai ir draudimai")
     if report.restrictions_and_prohibitions:
         for r in report.restrictions_and_prohibitions:
-            elements.append(Paragraph(f"• {r}", styles["BulletLT"]))
+            _bullet(r)
     else:
-        elements.append(Paragraph(_NOT_SPECIFIED, styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _text(_NOT_SPECIFIED)
+    _spacer()
 
-    # ── 12. Pastabos ir patikimumas
-    elements.append(
-        Paragraph("12. Pastabos ir patikimumas", styles["Heading2LT"])
-    )
+    # ── 16. Apeliavimas
+    if report.appeal_procedures:
+        _heading("Apeliavimo procedūra")
+        _text(report.appeal_procedures)
+        _spacer()
+
+    # ── 17. Pastabos ir patikimumas
+    _heading("Pastabos ir patikimumas")
     if report.confidence_notes:
         notes = _parse_confidence_notes(report.confidence_notes)
         for cn in notes:
@@ -421,13 +556,11 @@ async def export_pdf(
                 )
             )
     else:
-        elements.append(Paragraph("Pastabų nėra", styles["Normal"]))
-    elements.append(Spacer(1, 3 * mm))
+        _text("Pastabų nėra")
+    _spacer()
 
-    # ── 13. Kokybės vertinimas (QA)
-    elements.append(
-        Paragraph("13. Kokybės vertinimas", styles["Heading2LT"])
-    )
+    # ── 18. Kokybės vertinimas (QA)
+    _heading("Kokybės vertinimas")
     qa_color = _qa_color(qa.completeness_score)
     color_map = {"green": "#2E7D32", "orange": "#E65100", "red": "#C62828"}
     qa_hex = color_map.get(qa_color, "#000000")
@@ -441,16 +574,12 @@ async def export_pdf(
     )
 
     if qa.missing_fields:
-        elements.append(
-            Paragraph("<b>Trūkstami laukai:</b>", styles["Normal"])
-        )
+        _subheading("Trūkstami laukai:")
         for mf in qa.missing_fields:
-            elements.append(Paragraph(f"• {mf}", styles["BulletLT"]))
+            _bullet(mf)
 
     if qa.conflicts:
-        elements.append(
-            Paragraph("<b>Prieštaravimai:</b>", styles["Normal"])
-        )
+        _subheading("Prieštaravimai:")
         for conflict in qa.conflicts:
             elements.append(
                 Paragraph(
@@ -460,11 +589,9 @@ async def export_pdf(
             )
 
     if qa.suggestions:
-        elements.append(
-            Paragraph("<b>Pasiūlymai:</b>", styles["Normal"])
-        )
+        _subheading("Pasiūlymai:")
         for sug in qa.suggestions:
-            elements.append(Paragraph(f"• {sug}", styles["BulletLT"]))
+            _bullet(sug)
 
     elements.append(Spacer(1, 6 * mm))
 
@@ -506,6 +633,24 @@ async def export_docx(
 
     doc = Document()
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    section_num = 0
+
+    def _heading(title: str):
+        nonlocal section_num
+        section_num += 1
+        doc.add_heading(f"{section_num}. {title}", level=1)
+
+    def _subheading(title: str):
+        p = doc.add_paragraph()
+        run = p.add_run(title)
+        run.bold = True
+        run.font.size = Pt(11)
+
+    def _bold_para(label: str, value: str):
+        p = doc.add_paragraph()
+        run = p.add_run(f"{label}: ")
+        run.bold = True
+        p.add_run(value)
 
     # ── Title
     title_para = doc.add_heading("Viešojo pirkimo analizė", level=0)
@@ -518,78 +663,131 @@ async def export_docx(
         run.font.size = Pt(10)
         run.font.color.rgb = RGBColor(102, 102, 102)
 
-    # ── 1. Projekto santrauka
-    doc.add_heading("1. Projekto santrauka", level=1)
-    doc.add_paragraph(_or_na(report.project_summary))
-
-    # ── 2. Perkančioji organizacija
-    doc.add_heading("2. Perkančioji organizacija", level=1)
+    # ── 1. Pagrindinė informacija
+    _heading("Pagrindinė informacija")
     org = report.procuring_organization
+    dl = report.deadlines
+    if report.project_title:
+        _bold_para("Projekto pavadinimas", report.project_title)
+    if org and org.name:
+        _bold_para("Perkančioji organizacija", org.name)
+    _bold_para("Projekto vertė", _format_value(report.estimated_value))
+    if dl and dl.submission_deadline:
+        _bold_para("Dokumentų pateikimo terminas", _format_date(dl.submission_deadline))
+    if report.procurement_reference:
+        _bold_para("CVP kodas", report.procurement_reference)
+    if report.cpv_codes:
+        _bold_para("CPV kodai", "; ".join(report.cpv_codes))
+
+    # ── 2. Projekto santrauka
+    _heading("Projekto santrauka")
+    doc.add_paragraph(_or_na(report.project_summary))
+    if report.nuts_codes:
+        _bold_para("NUTS kodai", "; ".join(report.nuts_codes))
+    if report.procurement_law:
+        _bold_para("Teisės aktas", report.procurement_law)
+
+    # ── 3. Perkančioji organizacija
+    _heading("Perkančioji organizacija")
     if org:
-        doc.add_paragraph(f"Pavadinimas: {_or_na(org.name)}")
-        doc.add_paragraph(f"Kodas: {_or_na(org.code)}")
-        doc.add_paragraph(f"Kontaktai: {_or_na(org.contact)}")
+        _bold_para("Pavadinimas", _or_na(org.name))
+        _bold_para("Kodas", _or_na(org.code))
+        if org.organization_type:
+            _bold_para("Tipas", org.organization_type)
+        _bold_para("Adresas", _format_org_address(org))
+        _bold_para("Kontaktai", _format_org_contact(org))
     else:
         doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 3. Pirkimo būdas
+    # ── 4. Pirkimo būdas
     if report.procurement_type:
-        doc.add_heading("3. Pirkimo būdas", level=1)
+        _heading("Pirkimo būdas")
         doc.add_paragraph(report.procurement_type)
 
-    # ── 4. Pirkimo vertė
-    doc.add_heading("4. Pirkimo vertė", level=1)
-    doc.add_paragraph(_format_value(report.estimated_value))
+    # ── 5. Finansinės sąlygos
+    ft = report.financial_terms
+    if ft:
+        _heading("Finansinės sąlygos")
+        if ft.payment_terms:
+            _bold_para("Mokėjimo sąlygos", ft.payment_terms)
+        if ft.advance_payment:
+            _bold_para("Avansinis mokėjimas", ft.advance_payment)
+        if ft.guarantee_requirements:
+            _bold_para("Garantijos reikalavimai", ft.guarantee_requirements)
+        if ft.guarantee_amount:
+            _bold_para("Garantijos dydis", ft.guarantee_amount)
+        if ft.price_adjustment:
+            _bold_para("Kainos keitimo sąlygos", ft.price_adjustment)
+        if ft.insurance_requirements:
+            _bold_para("Draudimo reikalavimai", ft.insurance_requirements)
+        if ft.penalty_clauses:
+            _subheading("Baudos ir netesybos:")
+            for p in ft.penalty_clauses:
+                doc.add_paragraph(p, style="List Bullet")
 
-    # ── 5. Terminai
-    doc.add_heading("5. Terminai", level=1)
-    dl = report.deadlines
+    # ── 6. Terminai
+    _heading("Terminai")
     if dl:
-        doc.add_paragraph(
-            f"Pasiūlymų pateikimas: {_format_date(dl.submission_deadline)}"
-        )
-        doc.add_paragraph(
-            f"Klausimų pateikimas: {_format_date(dl.questions_deadline)}"
-        )
-        doc.add_paragraph(
-            f"Sutarties trukmė: {_or_na(dl.contract_duration)}"
-        )
-        doc.add_paragraph(
-            f"Darbų atlikimas: {_format_date(dl.execution_deadline)}"
-        )
+        _bold_para("Pasiūlymų pateikimas", _format_date(dl.submission_deadline))
+        _bold_para("Klausimų pateikimas", _format_date(dl.questions_deadline))
+        _bold_para("Sutarties trukmė", _or_na(dl.contract_duration))
+        _bold_para("Darbų atlikimas", _format_date(dl.execution_deadline))
+        if dl.offer_validity:
+            _bold_para("Pasiūlymo galiojimas", dl.offer_validity)
+        if dl.contract_start:
+            _bold_para("Sutarties pradžia", dl.contract_start)
+        if dl.extension_options:
+            _bold_para("Pratęsimo galimybės", dl.extension_options)
     else:
         doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 6. Pagrindiniai reikalavimai
-    doc.add_heading("6. Pagrindiniai reikalavimai", level=1)
-    if report.key_requirements:
+    # ── 7. Techninė specifikacija
+    _heading("Techninė specifikacija")
+    if report.technical_specifications:
+        for ts in report.technical_specifications:
+            tag = "PRIVALOMA" if ts.mandatory else "PAGEIDAUJAMA"
+            p = doc.add_paragraph(style="List Bullet")
+            run = p.add_run(f"[{tag}] ")
+            run.bold = True
+            p.add_run(ts.description)
+            if ts.details:
+                detail_p = doc.add_paragraph(f"    ↳ {ts.details}")
+                detail_p.paragraph_format.left_indent = Pt(36)
+    elif report.key_requirements:
         for req in report.key_requirements:
             doc.add_paragraph(req, style="List Bullet")
     else:
         doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 7. Kvalifikacijos reikalavimai
-    doc.add_heading("7. Kvalifikacijos reikalavimai", level=1)
+    # ── 8. Kiti pagrindiniai reikalavimai (if both exist)
+    if report.technical_specifications and report.key_requirements:
+        _heading("Kiti pagrindiniai reikalavimai")
+        for req in report.key_requirements:
+            doc.add_paragraph(req, style="List Bullet")
+
+    # ── 9. Kvalifikacijos reikalavimai
+    _heading("Kvalifikacijos reikalavimai")
     qr = report.qualification_requirements
     if qr:
         for group_name, group_label in [
             ("financial", "Finansiniai"),
             ("technical", "Techniniai"),
             ("experience", "Patirties"),
+            ("personnel", "Personalo"),
+            ("exclusion_grounds", "Pašalinimo pagrindai"),
+            ("required_documents", "Reikalaujami dokumentai"),
             ("other", "Kiti"),
         ]:
             items = getattr(qr, group_name, [])
             if items:
-                p = doc.add_paragraph()
-                run = p.add_run(f"{group_label}:")
-                run.bold = True
+                _subheading(f"{group_label}:")
                 for item in items:
                     doc.add_paragraph(item, style="List Bullet")
     else:
         doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 8. Vertinimo kriterijai (TABLE)
-    doc.add_heading("8. Vertinimo kriterijai", level=1)
+    # ── 10. Vertinimo kriterijai (TABLE)
+    _heading("Vertinimo kriterijai")
     if report.evaluation_criteria:
         table = doc.add_table(rows=1, cols=3)
         table.style = "Light Grid Accent 1"
@@ -608,9 +806,44 @@ async def export_docx(
     else:
         doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 9. Lotai (TABLE)
-    doc.add_heading("9. Lotai", level=1)
+    # ── 11. Pasiūlymo pateikimas
+    sr = report.submission_requirements
+    if sr:
+        _heading("Pasiūlymo pateikimas")
+        if sr.submission_method:
+            _bold_para("Pateikimo būdas", sr.submission_method)
+        if sr.submission_language:
+            _bold_para("Kalbos", ", ".join(sr.submission_language))
+        if sr.required_format:
+            _bold_para("Formatas", sr.required_format)
+        if sr.envelope_system:
+            _bold_para("Vokelių sistema", sr.envelope_system)
+        if sr.variants_allowed is not None:
+            _bold_para("Alternatyvūs pasiūlymai", "Leidžiami" if sr.variants_allowed else "Neleidžiami")
+        if sr.joint_bidding:
+            _bold_para("Jungtiniai pasiūlymai", sr.joint_bidding)
+        if sr.subcontracting:
+            _bold_para("Subrangos sąlygos", sr.subcontracting)
+
+    # ── 12. Rizikos tiekėjui (TABLE)
+    if report.risk_factors:
+        _heading("Rizikos tiekėjui")
+        table = doc.add_table(rows=1, cols=3)
+        table.style = "Light Grid Accent 2"
+        hdr = table.rows[0].cells
+        hdr[0].text = "Rizika"
+        hdr[1].text = "Lygis"
+        hdr[2].text = "Rekomendacija"
+
+        for rf in report.risk_factors:
+            row = table.add_row().cells
+            row[0].text = rf.risk
+            row[1].text = rf.severity.upper()
+            row[2].text = _or_na(rf.recommendation)
+
+    # ── 13. Lotai (TABLE)
     if report.lot_structure:
+        _heading("Lotai")
         table = doc.add_table(rows=1, cols=3)
         table.style = "Light Grid Accent 1"
         hdr = table.rows[0].cells
@@ -625,27 +858,30 @@ async def export_docx(
             row[2].text = (
                 f"{lot.estimated_value:,.2f}" if lot.estimated_value is not None else "-"
             )
-    else:
-        doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 10. Specialios sąlygos
-    doc.add_heading("10. Specialios sąlygos", level=1)
+    # ── 14. Specialios sąlygos
+    _heading("Specialios sąlygos")
     if report.special_conditions:
         for cond in report.special_conditions:
             doc.add_paragraph(cond, style="List Bullet")
     else:
         doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 11. Apribojimai ir draudimai
-    doc.add_heading("11. Apribojimai ir draudimai", level=1)
+    # ── 15. Apribojimai ir draudimai
+    _heading("Apribojimai ir draudimai")
     if report.restrictions_and_prohibitions:
         for r in report.restrictions_and_prohibitions:
             doc.add_paragraph(r, style="List Bullet")
     else:
         doc.add_paragraph(_NOT_SPECIFIED)
 
-    # ── 12. Pastabos ir patikimumas
-    doc.add_heading("12. Pastabos ir patikimumas", level=1)
+    # ── 16. Apeliavimas
+    if report.appeal_procedures:
+        _heading("Apeliavimo procedūra")
+        doc.add_paragraph(report.appeal_procedures)
+
+    # ── 17. Pastabos ir patikimumas
+    _heading("Pastabos ir patikimumas")
     if report.confidence_notes:
         notes = _parse_confidence_notes(report.confidence_notes)
         for cn in notes:
@@ -658,8 +894,8 @@ async def export_docx(
     else:
         doc.add_paragraph("Pastabų nėra")
 
-    # ── 13. Kokybės vertinimas
-    doc.add_heading("13. Kokybės vertinimas", level=1)
+    # ── 18. Kokybės vertinimas
+    _heading("Kokybės vertinimas")
 
     # QA Score with color
     qa_p = doc.add_paragraph()
@@ -675,22 +911,19 @@ async def export_docx(
     score_run.font.color.rgb = color_map.get(qa_color, RGBColor(0, 0, 0))
 
     if qa.missing_fields:
-        p = doc.add_paragraph()
-        p.add_run("Trūkstami laukai:").bold = True
+        _subheading("Trūkstami laukai:")
         for mf in qa.missing_fields:
             doc.add_paragraph(mf, style="List Bullet")
 
     if qa.conflicts:
-        p = doc.add_paragraph()
-        p.add_run("Prieštaravimai:").bold = True
+        _subheading("Prieštaravimai:")
         for conflict in qa.conflicts:
             cp = doc.add_paragraph(style="List Bullet")
             run = cp.add_run(conflict)
             run.font.color.rgb = RGBColor(0xC6, 0x28, 0x28)
 
     if qa.suggestions:
-        p = doc.add_paragraph()
-        p.add_run("Pasiūlymai:").bold = True
+        _subheading("Pasiūlymai:")
         for sug in qa.suggestions:
             doc.add_paragraph(sug, style="List Bullet")
 
