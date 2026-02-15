@@ -264,6 +264,10 @@ class ExtractionResult(BaseModel):
                 "cpv_codes",
                 "nuts_codes",
                 "source_references",
+                "technical_specifications",
+                "evaluation_criteria",
+                "risk_factors",
+                "source_documents",
             ]
             for field in list_fields:
                 v = values.get(field)

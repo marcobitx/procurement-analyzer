@@ -17,5 +17,6 @@
       "mcp__windows-mcp__App",
       "mcp__windows-mcp__Type"
     ]
-  }
+  },
+  "outputStyle": "Metodas → Kodėl → Sprendimas"
 }

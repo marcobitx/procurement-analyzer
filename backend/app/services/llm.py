@@ -6,6 +6,7 @@
 import asyncio
 import json
 import logging
+import random
 from typing import AsyncIterator, Awaitable, Callable, Optional
 
 import httpx
@@ -161,7 +162,7 @@ class LLMClient:
                 "HTTP-Referer": "https://procurement-analyzer.app",
                 "X-Title": "Procurement Analyzer",
             },
-            timeout=httpx.Timeout(120.0, connect=10.0),
+            timeout=httpx.Timeout(300.0, connect=10.0),
         )
 
     # ── Internal helpers ───────────────────────────────────────────────────
@@ -223,8 +224,9 @@ class LLMClient:
 
             # Backoff before next attempt (skip sleep after last attempt)
             if attempt < MAX_RETRIES - 1:
-                sleep_time = BACKOFF_SECONDS[attempt]
-                logger.debug("Sleeping %ds before retry...", sleep_time)
+                base_sleep = BACKOFF_SECONDS[attempt]
+                sleep_time = base_sleep * (1 + random.random() * 0.5)  # 0-50% jitter
+                logger.debug("Sleeping %.1fs before retry (base=%ds)...", sleep_time, base_sleep)
                 await asyncio.sleep(sleep_time)
 
         raise last_exc  # type: ignore[misc]
@@ -267,6 +269,7 @@ class LLMClient:
         model: str | None = None,
         temperature: float = 0.1,
         thinking: str = "off",
+        _retry_count: int = 0,
     ) -> tuple[BaseModel, dict]:
         """
         Structured output completion. Returns (parsed_model, usage_dict).
@@ -277,6 +280,7 @@ class LLMClient:
         Usage dict: {"input_tokens": int, "output_tokens": int}
 
         Retries: 3 attempts on 429/5xx with exponential backoff (2s, 4s, 8s).
+        On empty response: up to 3 attempts with jittered backoff.
         On parse failure: one automatic retry asking the LLM to correct its output.
         """
         raw_schema = response_schema.model_json_schema()
@@ -320,6 +324,24 @@ class LLMClient:
             raise LLMParseError(
                 f"No content in response: {json.dumps(data)[:300]}"
             ) from exc
+
+        # Check for empty content (known OpenRouter issue: cold starts, warm-up)
+        if not content or not content.strip():
+            if _retry_count < 2:
+                wait = (1.5 + random.random() * 1.5) * (_retry_count + 1)  # 1.5-3s, 3-6s
+                logger.warning(
+                    "Empty response for %s (attempt %d/3), retrying in %.1fs...",
+                    response_schema.__name__, _retry_count + 1, wait,
+                )
+                await asyncio.sleep(wait)
+                return await self.complete_structured(
+                    system=system, user=user, response_schema=response_schema,
+                    model=model, temperature=temperature, thinking=thinking,
+                    _retry_count=_retry_count + 1,
+                )
+            raise LLMParseError(
+                f"Empty response after 3 attempts for {response_schema.__name__}"
+            )
 
         # Robust JSON extraction — handles markdown fences, trailing text, etc.
         content_clean = _extract_json(content)
@@ -462,8 +484,11 @@ class LLMClient:
                         logger.debug("Skipping unparseable SSE chunk: %s (%s)", payload[:100], exc)
                         continue
 
-            if not full_content:
-                logger.warning("No content accumulated from streaming, falling back")
+            if not full_content or not full_content.strip():
+                logger.warning(
+                    "No content accumulated from streaming for %s, falling back to non-streaming",
+                    response_schema.__name__,
+                )
                 return await self.complete_structured(
                     system=system, user=user, response_schema=response_schema,
                     model=model, temperature=temperature, thinking=thinking,
@@ -559,6 +584,12 @@ class LLMClient:
             raise LLMParseError(
                 f"No content in correction response: {json.dumps(data)[:300]}"
             ) from exc
+
+        # Fail fast if correction also returned empty
+        if not content or not content.strip():
+            raise LLMParseError(
+                f"Empty correction response for {response_schema.__name__}"
+            )
 
         content_clean = _extract_json(content)
 

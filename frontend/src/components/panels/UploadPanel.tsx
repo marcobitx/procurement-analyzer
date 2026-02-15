@@ -187,12 +187,12 @@ export default function UploadPanel() {
 
       {/* Submit */}
       {state.files.length > 0 && (
-        <div className="p-4 border-t border-surface-700/20 animate-fade-in">
+        <div className="p-4 border-t border-surface-700/20 animate-fade-in flex justify-center">
           <Tooltip content="Pradėti AI dokumentų analizę" side="top">
             <button
               onClick={handleSubmit}
               disabled={state.uploading}
-              className="btn-professional w-full"
+              className="btn-professional"
             >
               {state.uploading ? (
                 <>

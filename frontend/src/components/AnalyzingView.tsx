@@ -136,6 +136,11 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
     snapshot ? Object.fromEntries(Object.keys(snapshot.stepThinking).map((k) => [k, true])) : {},
   );
 
+  // Event log collapsed map — collapsed for done steps, open for active
+  const [logCollapsedMap, setLogCollapsedMap] = useState<Record<number, boolean>>(
+    snapshot ? { 0: true, 1: true, 2: true, 3: true } : {},
+  );
+
   const logEndRef = useRef<HTMLDivElement>(null);
   const thinkingRef = useRef<HTMLDivElement>(null);
 
@@ -170,6 +175,18 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
     }
     prevThinkingRef.current = thinkingStreaming;
   }, [thinkingStreaming, currentStatus, reviewMode]);
+
+  // Auto-collapse event log when step transitions to done
+  const prevActiveIdxRef = useRef(0);
+  useEffect(() => {
+    if (reviewMode) return;
+    const newIdx = getStepIndex(currentStatus);
+    if (newIdx > prevActiveIdxRef.current) {
+      // Previous step just completed — collapse its event log
+      setLogCollapsedMap((prev) => ({ ...prev, [prevActiveIdxRef.current]: true }));
+    }
+    prevActiveIdxRef.current = newIdx;
+  }, [currentStatus, reviewMode]);
 
   // React to terminal statuses
   useEffect(() => {
@@ -237,6 +254,14 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
     }
     return null;
   }
+
+  /** Color scheme per step for the collapsible event log card */
+  const LOG_COLORS = [
+    { border: 'border-emerald-500/15', bg: 'bg-emerald-500/[0.04]', dot: 'bg-emerald-400/30', dotActive: 'bg-emerald-400 animate-pulse', text: 'text-emerald-400/50', textActive: 'text-emerald-400/70', hoverBg: 'hover:bg-emerald-500/5', borderInner: 'border-emerald-500/10', bgInner: 'bg-emerald-500/[0.03]', chevron: 'text-emerald-400/40', chevronActive: 'text-emerald-400/50' },
+    { border: 'border-amber-500/15', bg: 'bg-amber-500/[0.04]', dot: 'bg-amber-400/30', dotActive: 'bg-amber-400 animate-pulse', text: 'text-amber-400/50', textActive: 'text-amber-400/70', hoverBg: 'hover:bg-amber-500/5', borderInner: 'border-amber-500/10', bgInner: 'bg-amber-500/[0.03]', chevron: 'text-amber-400/40', chevronActive: 'text-amber-400/50' },
+    { border: 'border-orange-500/15', bg: 'bg-orange-500/[0.04]', dot: 'bg-orange-400/30', dotActive: 'bg-orange-400 animate-pulse', text: 'text-orange-400/50', textActive: 'text-orange-400/70', hoverBg: 'hover:bg-orange-500/5', borderInner: 'border-orange-500/10', bgInner: 'bg-orange-500/[0.03]', chevron: 'text-orange-400/40', chevronActive: 'text-orange-400/50' },
+    { border: 'border-violet-500/15', bg: 'bg-violet-500/[0.04]', dot: 'bg-violet-400/30', dotActive: 'bg-violet-400 animate-pulse', text: 'text-violet-400/50', textActive: 'text-violet-400/70', hoverBg: 'hover:bg-violet-500/5', borderInner: 'border-violet-500/10', bgInner: 'bg-violet-500/[0.03]', chevron: 'text-violet-400/40', chevronActive: 'text-violet-400/50' },
+  ];
 
   function getCompletedSummary(idx: number): string {
     if (idx === 0) {
@@ -334,6 +359,51 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                   </div>
                 </div>
               )}
+              {/* Event log — collapsible, closed by default for done steps */}
+              {eventsForStep.length > 0 && (() => {
+                const c = LOG_COLORS[i];
+                const isLogOpen = logCollapsedMap[i] === false;
+                return (
+                  <div className={`ml-[4.5rem] mr-5 mb-1 rounded-xl border ${c.border} ${c.bg} backdrop-blur-sm overflow-hidden`}>
+                    <button
+                      type="button"
+                      onClick={() => setLogCollapsedMap((prev) => ({ ...prev, [i]: isLogOpen }))}
+                      className={`w-full flex items-center gap-2 px-3 py-1.5 ${c.hoverBg} transition-colors cursor-pointer select-none`}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                      <span className={`text-[9px] font-black ${c.text} uppercase tracking-widest`}>
+                        Įvykių žurnalas
+                      </span>
+                      <span className={`text-[9px] font-mono ${c.text} ml-1`}>
+                        ({eventsForStep.length})
+                      </span>
+                      <ChevronDown className={`w-3 h-3 ${c.chevron} ml-auto transition-transform duration-200 ${isLogOpen ? '' : '-rotate-90'}`} />
+                    </button>
+                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isLogOpen ? 'max-h-[250px]' : 'max-h-0'
+                    }`}>
+                      <div className={`px-3 py-2 border-t ${c.borderInner} ${c.bgInner} max-h-[200px] overflow-y-auto scrollbar-thin space-y-1`}>
+                        {eventsForStep.map((e, j) => {
+                          const fmt = formatEvent(e);
+                          return (
+                            <div key={j} className="flex items-start gap-2.5 font-mono text-[11px] group/line py-0.5">
+                              <span className="text-surface-600 shrink-0">
+                                [{new Date(e.ts).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
+                              </span>
+                              <span className={`shrink-0 px-1.5 py-0 rounded text-[9px] font-black ${fmt.badge}`}>
+                                {fmt.label}
+                              </span>
+                              <span className="text-surface-300 truncate group-hover/line:text-brand-300 transition-colors">
+                                {fmt.detail}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Divider after completed step */}
               <div className="mx-5 h-px" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(94,86,79,0.5) 0, rgba(94,86,79,0.5) 12px, transparent 12px, transparent 20px)' }} />
             </div>
@@ -397,30 +467,52 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                 </div>
               )}
 
-              {/* Event log — separate card below CoT */}
-              {eventsForStep.length > 0 && (
-                <div className="ml-[4.5rem] mr-5 py-2">
-                  <div className="max-h-[200px] overflow-y-auto scrollbar-thin space-y-1" aria-live="polite" aria-label="Analizės įvykiai">
-                    {eventsForStep.map((e, j) => {
-                      const fmt = formatEvent(e);
-                      return (
-                        <div key={j} className="flex items-start gap-2.5 font-mono text-[11px] group/line py-0.5">
-                          <span className="text-surface-600 shrink-0">
-                            [{new Date(e.ts).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
-                          </span>
-                          <span className={`shrink-0 px-1.5 py-0 rounded text-[9px] font-black ${fmt.badge}`}>
-                            {fmt.label}
-                          </span>
-                          <span className="text-surface-300 truncate group-hover/line:text-brand-300 transition-colors">
-                            {fmt.detail}
-                          </span>
-                        </div>
-                      );
-                    })}
-                    <div ref={logEndRef} />
+              {/* Event log — collapsible card below CoT */}
+              {eventsForStep.length > 0 && (() => {
+                const c = LOG_COLORS[i];
+                const isLogOpen = logCollapsedMap[i] !== true; // open by default for active step
+                return (
+                  <div className={`ml-[4.5rem] mr-5 rounded-xl border ${c.border} ${c.bg} backdrop-blur-sm overflow-hidden`}>
+                    <button
+                      type="button"
+                      onClick={() => setLogCollapsedMap((prev) => ({ ...prev, [i]: isLogOpen }))}
+                      className={`w-full flex items-center gap-2 px-3 py-2 ${c.hoverBg} transition-colors cursor-pointer select-none`}
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full ${c.dotActive}`} />
+                      <span className={`text-[9px] font-black ${c.textActive} uppercase tracking-widest`}>
+                        Įvykių žurnalas
+                      </span>
+                      <span className={`text-[9px] font-mono ${c.textActive} ml-1`}>
+                        ({eventsForStep.length})
+                      </span>
+                      <ChevronDown className={`w-3 h-3 ${c.chevronActive} ml-auto transition-transform duration-200 ${isLogOpen ? '' : '-rotate-90'}`} />
+                    </button>
+                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isLogOpen ? 'max-h-[250px]' : 'max-h-0'
+                    }`}>
+                      <div className={`px-3 py-2 border-t ${c.borderInner} ${c.bgInner} max-h-[200px] overflow-y-auto scrollbar-thin space-y-1`} aria-live="polite" aria-label="Analizės įvykiai">
+                        {eventsForStep.map((e, j) => {
+                          const fmt = formatEvent(e);
+                          return (
+                            <div key={j} className="flex items-start gap-2.5 font-mono text-[11px] group/line py-0.5">
+                              <span className="text-surface-600 shrink-0">
+                                [{new Date(e.ts).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
+                              </span>
+                              <span className={`shrink-0 px-1.5 py-0 rounded text-[9px] font-black ${fmt.badge}`}>
+                                {fmt.label}
+                              </span>
+                              <span className="text-surface-300 truncate group-hover/line:text-brand-300 transition-colors">
+                                {fmt.detail}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <div ref={logEndRef} />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           );
         }

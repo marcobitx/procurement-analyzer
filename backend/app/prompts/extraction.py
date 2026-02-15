@@ -127,15 +127,14 @@ Geriau pateikti per daug informacijos nei per mažai.
 - Atsakyk TIK JSON formatu — be markdown, be papildomo teksto"""
 
 EXTRACTION_USER = """\
-Analizuojamas dokumentas:
+{content}
+
+---
+
+Aukščiau pateiktas dokumento turinys. Metaduomenys:
 - Failo pavadinimas: {filename}
 - Dokumento tipas: {document_type}
 - Puslapių skaičius: {page_count}
-
-Dokumento turinys:
----
-{content}
----
 
 Ištrauk VISĄ informaciją pagal nurodytą JSON schemą. \
 Būk MAKSIMALIAI detalus — kiekvienas reikalavimas, kiekviena sąlyga, kiekviena suma turi būti užfiksuota."""

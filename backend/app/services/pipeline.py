@@ -22,6 +22,31 @@ from app.services.zip_extractor import extract_files
 
 logger = logging.getLogger(__name__)
 
+# Fallback context lengths for known models (used when API lookup fails)
+KNOWN_CONTEXT_LENGTHS: dict[str, int] = {
+    "anthropic/claude-sonnet-4": 200_000,
+    "anthropic/claude-opus-4": 200_000,
+    "anthropic/claude-haiku-4": 200_000,
+    "anthropic/claude-sonnet-4-20250514": 200_000,
+    "anthropic/claude-3.5-sonnet": 200_000,
+    "openai/gpt-4o": 128_000,
+    "openai/gpt-4o-mini": 128_000,
+    "openai/gpt-4.1": 1_000_000,
+    "openai/gpt-4.1-mini": 1_000_000,
+    "openai/o3": 200_000,
+    "openai/o3-mini": 200_000,
+    "openai/o4-mini": 200_000,
+    "google/gemini-2.0-flash": 1_000_000,
+    "google/gemini-2.5-flash-preview": 1_000_000,
+    "google/gemini-3-flash-preview": 1_000_000,
+    "google/gemini-2.5-pro-preview": 1_000_000,
+    "deepseek/deepseek-chat-v3": 128_000,
+    "deepseek/deepseek-r1": 128_000,
+    "meta-llama/llama-4-maverick": 1_000_000,
+    "moonshotai/kimi-k2.5": 128_000,
+}
+DEFAULT_CONTEXT_LENGTH = 128_000
+
 
 @dataclass
 class PipelineMetrics:
@@ -74,6 +99,33 @@ class AnalysisPipeline:
         self._event_index = 0
         self._stream_queue = create_stream(analysis_id)
 
+    async def _resolve_context_length(self) -> int:
+        """Resolve the context window size for the selected model.
+
+        Tries the known fallback map first, then queries OpenRouter API.
+        Falls back to DEFAULT_CONTEXT_LENGTH if both fail.
+        """
+        # Fast path: check known models map
+        if self.model in KNOWN_CONTEXT_LENGTHS:
+            ctx = KNOWN_CONTEXT_LENGTHS[self.model]
+            logger.info("Model %s context_length=%d (known map)", self.model, ctx)
+            return ctx
+
+        # Slow path: query OpenRouter for model info
+        try:
+            models = await self.llm.list_models()
+            for m in models:
+                if m["id"] == self.model:
+                    ctx = m.get("context_length", DEFAULT_CONTEXT_LENGTH)
+                    if ctx > 0:
+                        logger.info("Model %s context_length=%d (API)", self.model, ctx)
+                        return ctx
+        except Exception as e:
+            logger.warning("Failed to fetch model info for %s: %s", self.model, e)
+
+        logger.info("Model %s context_length=%d (default fallback)", self.model, DEFAULT_CONTEXT_LENGTH)
+        return DEFAULT_CONTEXT_LENGTH
+
     async def run(self, upload_paths: list[Path]) -> None:
         """Execute the full analysis pipeline."""
         self.metrics.start_time = time.time()
@@ -123,6 +175,9 @@ class AnalysisPipeline:
                     content_text=doc.content,
                 )
 
+            # Resolve model context window for dynamic chunking
+            context_length = await self._resolve_context_length()
+
             # Step 2: Extract per-document (parallel with concurrency limit)
             await self._check_cancellation()
             await self._update_status(AnalysisStatus.EXTRACTING)
@@ -130,6 +185,7 @@ class AnalysisPipeline:
                 docs=parsed_docs,
                 llm=self.llm,
                 model=self.model,
+                context_length=context_length,
                 on_started=self._on_extraction_started_sync,
                 on_completed=self._on_extraction_completed_sync,
                 on_thinking=extraction_thinking,
@@ -147,6 +203,7 @@ class AnalysisPipeline:
             await self._emit_event("aggregation_started", {})
             report, agg_usage = await aggregate_results(
                 extractions, self.llm, self.model,
+                context_length=context_length,
                 on_thinking=aggregation_thinking,
             )
             await self._push_thinking_done()

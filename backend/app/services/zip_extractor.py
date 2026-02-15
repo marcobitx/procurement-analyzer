@@ -154,6 +154,23 @@ async def _extract_zip(
                     )
                     results.extend(nested_results)
 
+                # Nested 7z inside ZIP: extract it
+                elif ext == ".7z":
+                    nested_dest = Path(tempfile.mkdtemp(
+                        prefix=f"nested_7z_{_depth + 1}_",
+                    ))
+                    logger.debug(
+                        "Found nested 7z %r (depth %d) — extracting to %s",
+                        safe_name,
+                        _depth + 1,
+                        nested_dest,
+                    )
+                    nested_results = await _extract_7z(
+                        target_path,
+                        nested_dest,
+                    )
+                    results.extend(nested_results)
+
                 # Supported extension: include in results
                 elif ext in SUPPORTED_EXTENSIONS:
                     # Use just the base filename as the original name

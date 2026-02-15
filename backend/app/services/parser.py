@@ -1,11 +1,12 @@
 # backend/app/services/parser.py
-# Document parsing service using Docling
+# Document parsing service — fast parsers (PyMuPDF, python-docx) with Docling fallback
 # Converts PDF, DOCX, XLSX, PPTX, images to markdown text
 # Related: models/schemas.py, services/zip_extractor.py
 
 import asyncio
 import logging
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -15,25 +16,142 @@ from app.models.schemas import DocumentType
 logger = logging.getLogger(__name__)
 
 
+# Suppress known Docling regression: ListGroup warnings from msword_backend
+# See: https://github.com/DS4SD/docling/issues/2967 (caused by PR #2665)
+class _DoclingListWarningFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        if "list item" in msg.lower() and "ListGroup" in msg:
+            return False
+        if "List item not matching any insert condition" in msg:
+            return False
+        return True
+
+
+logging.getLogger("docling.backend.msword_backend").addFilter(_DoclingListWarningFilter())
+
+
 @dataclass
 class ParsedDocument:
     filename: str
-    content: str  # markdown text from Docling
+    content: str  # markdown text
     page_count: int
     file_size_bytes: int
     doc_type: DocumentType
     token_estimate: int  # len(content) // 4 rough estimate
 
 
-# Lazy-initialized converter singleton (Docling import is heavy)
+# ── Fast parsers (PyMuPDF for PDF, python-docx for DOCX) ─────────────────────
+
+
+def _parse_pdf_fast(file_path: Path) -> tuple[str, int]:
+    """Parse PDF using PyMuPDF4LLM — returns (markdown_text, page_count).
+
+    ~100x faster than Docling for text-based PDFs.
+    Handles tables, headers, lists natively.
+    """
+    import pymupdf4llm
+
+    markdown_text = pymupdf4llm.to_markdown(str(file_path))
+
+    # Get page count from PyMuPDF directly
+    import pymupdf
+    doc = pymupdf.open(str(file_path))
+    page_count = len(doc)
+    doc.close()
+
+    return markdown_text, page_count
+
+
+def _parse_docx_fast(file_path: Path) -> tuple[str, int]:
+    """Parse DOCX using python-docx — returns (markdown_text, page_count).
+
+    Extracts paragraphs, tables, and basic formatting as markdown.
+    """
+    from docx import Document
+
+    doc = Document(str(file_path))
+    parts: list[str] = []
+
+    for element in doc.element.body:
+        tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
+
+        if tag == "p":
+            # Paragraph
+            para = None
+            for p in doc.paragraphs:
+                if p._element is element:
+                    para = p
+                    break
+            if para is None:
+                continue
+
+            text = para.text.strip()
+            if not text:
+                continue
+
+            style_name = (para.style.name or "").lower() if para.style else ""
+
+            if "heading 1" in style_name:
+                parts.append(f"# {text}")
+            elif "heading 2" in style_name:
+                parts.append(f"## {text}")
+            elif "heading 3" in style_name:
+                parts.append(f"### {text}")
+            elif "heading" in style_name:
+                parts.append(f"#### {text}")
+            elif "list" in style_name or "bullet" in style_name:
+                parts.append(f"- {text}")
+            else:
+                parts.append(text)
+
+        elif tag == "tbl":
+            # Table
+            for table in doc.tables:
+                if table._element is element:
+                    _render_table(table, parts)
+                    break
+
+    markdown_text = "\n\n".join(parts)
+
+    # Estimate pages from content length (~3000 chars per page)
+    page_count = max(len(markdown_text) // 3000, 1)
+
+    return markdown_text, page_count
+
+
+def _render_table(table, parts: list[str]) -> None:
+    """Render a python-docx table as markdown."""
+    rows = []
+    for row in table.rows:
+        cells = [cell.text.strip().replace("\n", " ") for cell in row.cells]
+        rows.append(cells)
+
+    if not rows:
+        return
+
+    # Header row
+    parts.append("| " + " | ".join(rows[0]) + " |")
+    parts.append("| " + " | ".join("---" for _ in rows[0]) + " |")
+
+    # Data rows
+    for row in rows[1:]:
+        # Pad row to match header column count
+        while len(row) < len(rows[0]):
+            row.append("")
+        parts.append("| " + " | ".join(row[: len(rows[0])]) + " |")
+
+
+# ── Docling fallback (for images, PPTX, and complex formats) ─────────────────
+
 _converter = None
 
 
 def _get_converter():
     """Lazily initialize and cache the Docling DocumentConverter.
 
-    Config: OCR off, table mode FAST, timeout from settings,
-    force_backend_text from settings, threads matched to CPU cores.
+    Only used as fallback for formats not handled by fast parsers
+    (images, PPTX, or when fast parsing fails).
     """
     global _converter
     if _converter is None:
@@ -77,23 +195,55 @@ def _get_converter():
         )
 
         logger.info(
-            "Docling converter initialized: table_mode=fast, timeout=%ds, "
-            "force_backend_text=%s, threads=%d",
+            "Docling converter initialized (fallback): table_mode=fast, "
+            "timeout=%ds, threads=%d",
             settings.parser_doc_timeout,
-            settings.parser_force_backend_text,
             cpu_threads,
         )
     return _converter
 
 
+def _parse_with_docling(file_path: Path, file_ext: str) -> tuple[str, int]:
+    """Parse using Docling — fallback for images, PPTX, and complex formats."""
+    converter = _get_converter()
+    result = converter.convert(str(file_path))
+
+    from docling.datamodel.base_models import ConversionStatus
+
+    if result.status == ConversionStatus.FAILURE:
+        error_msgs = "; ".join(str(e) for e in (result.errors or []))
+        raise RuntimeError(f"Docling conversion failed: {error_msgs or 'unknown error'}")
+
+    markdown_text = result.document.export_to_markdown()
+
+    try:
+        page_count = result.document.num_pages()
+        if page_count == 0:
+            page_count = _estimate_pages(markdown_text, file_ext)
+    except Exception:
+        page_count = _estimate_pages(markdown_text, file_ext)
+
+    return markdown_text, page_count
+
+
+# ── Main parse function ──────────────────────────────────────────────────────
+
+
+# Extensions handled by fast parsers (no Docling needed)
+_FAST_PDF_EXTS = {".pdf"}
+_FAST_DOCX_EXTS = {".docx"}
+# Extensions that need Docling (images, PPTX, XLSX)
+_DOCLING_EXTS = {".pptx", ".png", ".tiff", ".jpg", ".jpeg", ".xlsx"}
+
+
 async def parse_document(file_path: Path, filename: str) -> ParsedDocument:
-    """Parse a single document using Docling.
+    """Parse a single document — uses fast parser when possible, Docling as fallback.
 
-    Converts the file to markdown text, extracts page count,
-    classifies document type, and estimates token count.
-
-    If Docling fails, returns a ParsedDocument with the error message
-    in the content field.
+    Strategy:
+    - PDF → PyMuPDF4LLM (fast, ~0.1-0.5s)
+    - DOCX → python-docx (fast, ~0.1s)
+    - XLSX/PPTX/images → Docling (slow but necessary)
+    - If fast parser fails → automatic Docling fallback
     """
     try:
         file_size = file_path.stat().st_size
@@ -111,43 +261,53 @@ async def parse_document(file_path: Path, filename: str) -> ParsedDocument:
         )
 
     file_ext = file_path.suffix.lower()
+    start = time.perf_counter()
 
     try:
-        converter = _get_converter()
-
-        # Docling is CPU-bound — run in a thread to avoid blocking the event loop
         loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(None, converter.convert, str(file_path))
 
-        # Check conversion status
-        from docling.datamodel.base_models import ConversionStatus
+        if file_ext in _FAST_PDF_EXTS:
+            # Fast path: PyMuPDF
+            try:
+                markdown_text, page_count = await loop.run_in_executor(
+                    None, _parse_pdf_fast, file_path
+                )
+                parser_used = "pymupdf"
+            except Exception as e:
+                logger.warning(
+                    "PyMuPDF failed for %s (%s), falling back to Docling", filename, e
+                )
+                markdown_text, page_count = await loop.run_in_executor(
+                    None, _parse_with_docling, file_path, file_ext
+                )
+                parser_used = "docling-fallback"
 
-        if result.status == ConversionStatus.FAILURE:
-            error_msgs = "; ".join(str(e) for e in (result.errors or []))
-            error_content = (
-                f"[ERROR] Failed to parse {filename}: {error_msgs or 'unknown error'}"
+        elif file_ext in _FAST_DOCX_EXTS:
+            # Fast path: python-docx
+            try:
+                markdown_text, page_count = await loop.run_in_executor(
+                    None, _parse_docx_fast, file_path
+                )
+                parser_used = "python-docx"
+            except Exception as e:
+                logger.warning(
+                    "python-docx failed for %s (%s), falling back to Docling",
+                    filename,
+                    e,
+                )
+                markdown_text, page_count = await loop.run_in_executor(
+                    None, _parse_with_docling, file_path, file_ext
+                )
+                parser_used = "docling-fallback"
+
+        else:
+            # Docling for everything else (images, PPTX, XLSX)
+            markdown_text, page_count = await loop.run_in_executor(
+                None, _parse_with_docling, file_path, file_ext
             )
-            logger.warning("Docling conversion failed for %s: %s", filename, error_msgs)
-            doc_type = classify_document(filename, "")
-            return ParsedDocument(
-                filename=filename,
-                content=error_content,
-                page_count=0,
-                file_size_bytes=file_size,
-                doc_type=doc_type,
-                token_estimate=len(error_content) // 4,
-            )
+            parser_used = "docling"
 
-        # Export to markdown
-        markdown_text = result.document.export_to_markdown()
-
-        # Get page count from Docling metadata, fall back to estimation
-        try:
-            page_count = result.document.num_pages()
-            if page_count == 0:
-                page_count = _estimate_pages(markdown_text, file_ext)
-        except Exception:
-            page_count = _estimate_pages(markdown_text, file_ext)
+        elapsed = time.perf_counter() - start
 
         # Classify document type
         content_preview = markdown_text[:2000]
@@ -157,12 +317,15 @@ async def parse_document(file_path: Path, filename: str) -> ParsedDocument:
         token_estimate = len(markdown_text) // 4
 
         logger.info(
-            "Parsed %s: %d pages, %d chars, %d est. tokens, type=%s",
+            "Parsed %s: %d pages, %d chars, %d est. tokens, type=%s, "
+            "parser=%s, time=%.2fs",
             filename,
             page_count,
             len(markdown_text),
             token_estimate,
             doc_type.value,
+            parser_used,
+            elapsed,
         )
 
         return ParsedDocument(
@@ -195,16 +358,16 @@ async def parse_all(
 ) -> list[ParsedDocument]:
     """Parse all documents with bounded concurrency.
 
-    Uses asyncio.Semaphore to limit parallel parsing (CPU-bound work).
+    Uses asyncio.Semaphore to limit parallel parsing.
+    With fast parsers, concurrency limit is raised to 5.
     Calls on_parsed callback after each file for SSE streaming progress.
     """
     if not file_paths:
         return []
 
     if max_concurrent is None:
-        from app.config import get_settings
-
-        max_concurrent = get_settings().parser_max_concurrent
+        # Fast parsers can handle higher concurrency
+        max_concurrent = 5
 
     semaphore = asyncio.Semaphore(max_concurrent)
 
