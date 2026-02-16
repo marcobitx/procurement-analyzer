@@ -168,6 +168,7 @@ async def _extract_single(
             response_schema=ExtractionResult,
             model=model,
             thinking="low",
+            max_tokens=32000,
             on_thinking=on_thinking,
         )
     else:
@@ -177,6 +178,7 @@ async def _extract_single(
             response_schema=ExtractionResult,
             model=model,
             thinking="low",
+            max_tokens=32000,
         )
     return result, usage  # type: ignore[return-value]
 
@@ -209,7 +211,8 @@ async def _extract_single_multimodal(
         user=content_parts,
         response_schema=ExtractionResult,
         model=model,
-        thinking="low",
+        thinking="off",
+        max_tokens=16000,
         on_thinking=on_thinking,
         plugins=plugins,
     )

@@ -165,15 +165,17 @@ class AnalysisPipeline:
             )
             self.metrics.total_pages = sum(d.page_count for d in parsed_docs)
 
-            # Save parsed docs to DB
-            for doc in parsed_docs:
-                await self.db.add_document(
+            # Save parsed docs to DB (parallel)
+            await asyncio.gather(*(
+                self.db.add_document(
                     analysis_id=self.analysis_id,
                     filename=doc.filename,
                     doc_type=doc.doc_type.value,
                     page_count=doc.page_count,
                     content_text=doc.content,
                 )
+                for doc in parsed_docs
+            ))
 
             # Resolve model context window for dynamic chunking
             context_length = await self._resolve_context_length()
@@ -186,6 +188,7 @@ class AnalysisPipeline:
                 llm=self.llm,
                 model=self.model,
                 context_length=context_length,
+                max_concurrent=min(len(parsed_docs), 10),
                 on_started=self._on_extraction_started_sync,
                 on_completed=self._on_extraction_completed_sync,
                 on_thinking=extraction_thinking,
@@ -211,26 +214,7 @@ class AnalysisPipeline:
             self.metrics.tokens_aggregation_output = agg_usage.get("output_tokens", 0)
             await self._emit_event("aggregation_completed", agg_usage)
 
-            # Step 4: Evaluate report quality
-            await self._check_cancellation()
-            await self._update_status(AnalysisStatus.EVALUATING)
-            await self._emit_event("evaluation_started", {})
-            source_docs = [
-                SourceDocument(
-                    filename=d.filename, type=d.doc_type, pages=d.page_count
-                )
-                for d in parsed_docs
-            ]
-            qa, eval_usage = await evaluate_report(
-                report, source_docs, self.llm, self.model,
-                on_thinking=evaluation_thinking,
-            )
-            await self._push_thinking_done()
-            self.metrics.tokens_evaluation_input = eval_usage.get("input_tokens", 0)
-            self.metrics.tokens_evaluation_output = eval_usage.get("output_tokens", 0)
-            await self._emit_event("evaluation_completed", eval_usage)
-
-            # Step 5: Save results and mark completed
+            # Step 4: Mark as COMPLETED immediately with report (evaluation runs in background)
             self.metrics.elapsed_seconds = time.time() - self.metrics.start_time
             self._calculate_total_cost()
 
@@ -238,11 +222,23 @@ class AnalysisPipeline:
                 self.analysis_id,
                 status=AnalysisStatus.COMPLETED.value,
                 report_json=report.model_dump(),
-                qa_json=qa.model_dump(),
                 metrics_json=self.metrics.to_dict(),
             )
 
             await self._emit_event("metrics_update", self.metrics.to_dict())
+
+            # Step 5: Evaluate report quality in background (non-blocking)
+            source_docs = [
+                SourceDocument(
+                    filename=d.filename, type=d.doc_type, pages=d.page_count
+                )
+                for d in parsed_docs
+            ]
+            asyncio.create_task(
+                self._run_evaluation_background(
+                    report, source_docs, evaluation_thinking,
+                )
+            )
 
         except asyncio.CancelledError:
             logger.info("Pipeline cancelled for %s", self.analysis_id)
@@ -265,6 +261,39 @@ class AnalysisPipeline:
 
         finally:
             remove_stream(self.analysis_id)
+
+    # ── Background evaluation ─────────────────────────────────────────────
+
+    async def _run_evaluation_background(
+        self,
+        report,
+        source_docs: list[SourceDocument],
+        evaluation_thinking,
+    ) -> None:
+        """Run QA evaluation in background and update DB when done."""
+        try:
+            qa, eval_usage = await evaluate_report(
+                report, source_docs, self.llm, self.model,
+                on_thinking=evaluation_thinking,
+            )
+            self.metrics.tokens_evaluation_input = eval_usage.get("input_tokens", 0)
+            self.metrics.tokens_evaluation_output = eval_usage.get("output_tokens", 0)
+            self._calculate_total_cost()
+
+            await self.db.update_analysis(
+                self.analysis_id,
+                qa_json=qa.model_dump(),
+                metrics_json=self.metrics.to_dict(),
+            )
+            logger.info(
+                "Background evaluation completed for %s: score=%.2f",
+                self.analysis_id, qa.completeness_score,
+            )
+        except Exception as e:
+            logger.error(
+                "Background evaluation failed for %s: %s",
+                self.analysis_id, e, exc_info=True,
+            )
 
     # ── Status and event helpers ───────────────────────────────────────────
 

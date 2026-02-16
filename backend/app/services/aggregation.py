@@ -38,14 +38,14 @@ def _trim_extraction_json(extraction_json: str, target_chars: int) -> str:
     }
 
     trimmed = {k: v for k, v in data.items() if k in essential_fields and v is not None}
-    result = json.dumps(trimmed, indent=2, ensure_ascii=False)
+    result = json.dumps(trimmed, ensure_ascii=False)
 
     if len(result) > target_chars:
         # Further trim: remove large nested lists
         for key in ("key_requirements", "qualification_requirements", "risk_factors"):
             if key in trimmed and isinstance(trimmed[key], list) and len(trimmed[key]) > 5:
                 trimmed[key] = trimmed[key][:5]
-        result = json.dumps(trimmed, indent=2, ensure_ascii=False)
+        result = json.dumps(trimmed, ensure_ascii=False)
 
     return result
 
@@ -76,8 +76,12 @@ async def aggregate_results(
     all_source_docs: list[SourceDocument] = []
 
     for idx, (parsed_doc, extraction, _usage) in enumerate(extractions, start=1):
-        # Format extraction as numbered JSON block
-        extraction_json = extraction.model_dump_json(indent=2, exclude_none=True)
+        # Format extraction as compact JSON (exclude bulky fields not needed for aggregation)
+        aggregation_data = extraction.model_dump(
+            exclude_none=True,
+            exclude={"source_references", "source_documents"},
+        )
+        extraction_json = json.dumps(aggregation_data, ensure_ascii=False)
         block = f"Dokumentas {idx}: {parsed_doc.filename}\n```json\n{extraction_json}\n```"
         per_doc_blocks.append(block)
 
@@ -109,7 +113,11 @@ async def aggregate_results(
         target_per_doc = (max_chars - 2000) // len(extractions)  # reserve 2k for template
         per_doc_blocks = []
         for idx, (parsed_doc, extraction, _usage) in enumerate(extractions, start=1):
-            extraction_json = extraction.model_dump_json(indent=2, exclude_none=True)
+            aggregation_data = extraction.model_dump(
+                exclude_none=True,
+                exclude={"source_references", "source_documents"},
+            )
+            extraction_json = json.dumps(aggregation_data, ensure_ascii=False)
             if len(extraction_json) > target_per_doc:
                 extraction_json = _trim_extraction_json(extraction_json, target_per_doc)
             block = f"Dokumentas {idx}: {parsed_doc.filename}\n```json\n{extraction_json}\n```"
@@ -134,7 +142,7 @@ async def aggregate_results(
         user=user_prompt,
         response_schema=AggregatedReport,
         model=model,
-        thinking="medium",
+        thinking="low",
         on_thinking=on_thinking,
     )
 

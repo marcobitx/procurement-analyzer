@@ -63,14 +63,7 @@ Tavo užduotis — įvertinti galutinės ataskaitos pilnumą, nuoseklumą ir pra
 - conflicts: nurodyk prieštaravimus tarp laukų
 - suggestions: duok KONKREČIUS patarimus ką papildyti ir kaip
 
-SVARBU: Atsakyk TIK grynu JSON formatu. Jokio markdown, jokio papildomo teksto.
-JSON schema:
-{
-  "completeness_score": <float 0.0-1.0>,
-  "missing_fields": ["<laukas1>", "<laukas2>"],
-  "conflicts": ["<prieštaravimas1>"],
-  "suggestions": ["<pasiūlymas1>"]
-}"""
+SVARBU: Atsakyk TIK grynu JSON formatu. Jokio markdown, jokio papildomo teksto."""
 
 EVALUATION_USER = """\
 Galutinė ataskaita:

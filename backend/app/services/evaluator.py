@@ -67,7 +67,8 @@ async def evaluate_report(
         user=user_prompt,
         response_schema=QAEvaluation,
         model=model,
-        thinking="medium",
+        thinking="low",
+        max_tokens=4000,
         on_thinking=on_thinking,
     )
 

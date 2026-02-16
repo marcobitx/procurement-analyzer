@@ -216,6 +216,33 @@ def _clean_json_schema(schema: dict) -> dict:
     return cleaned
 
 
+def _compact_schema_hint(schema: dict) -> str:
+    """Build a compact type-hint string from a JSON schema for Anthropic models.
+
+    Instead of dumping the full schema (3-5KB), produces a concise summary like:
+      project_title: str, cpv_codes: list[str], estimated_value: {amount: num, ...}
+    This gives the model enough type info without bloating the prompt.
+    """
+    def _type_str(prop: dict) -> str:
+        if "$ref" in prop or "anyOf" in prop or "allOf" in prop or "oneOf" in prop:
+            return "object"
+        t = prop.get("type", "any")
+        if t == "array":
+            items = prop.get("items", {})
+            inner = items.get("type", "object")
+            return f"list[{inner}]"
+        return t
+
+    props = schema.get("properties", {})
+    if not props:
+        return json.dumps(schema, ensure_ascii=False)
+
+    parts = []
+    for name, prop in props.items():
+        parts.append(f"{name}: {_type_str(prop)}")
+    return ", ".join(parts)
+
+
 class LLMClient:
     def __init__(self, api_key: str, default_model: str = "anthropic/claude-sonnet-4"):
         self.api_key = api_key
@@ -338,6 +365,7 @@ class LLMClient:
         model: str | None = None,
         temperature: float = 0.1,
         thinking: str = "off",
+        max_tokens: int = 32000,
         plugins: list[dict] | None = None,
         _retry_count: int = 0,
     ) -> tuple[BaseModel, dict]:
@@ -363,8 +391,8 @@ class LLMClient:
         if is_anthropic:
             response_format = {"type": "json_object"}
             schema_instruction = (
-                f"\n\nYou MUST respond with valid JSON matching this schema:\n"
-                f"```json\n{json.dumps(cleaned_schema, indent=2)}\n```"
+                f"\n\nRespond with valid JSON object. "
+                f"Field types: {_compact_schema_hint(cleaned_schema)}"
             )
             system_with_schema = system + schema_instruction
         else:
@@ -377,10 +405,26 @@ class LLMClient:
             }
             system_with_schema = system
 
-        messages = [
-            {"role": "system", "content": system_with_schema},
-            {"role": "user", "content": user},
-        ]
+        # Build messages — Anthropic gets cache_control for prompt caching
+        if is_anthropic:
+            messages = [
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": system_with_schema,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                },
+                {"role": "user", "content": user},
+            ]
+        else:
+            messages = [
+                {"role": "system", "content": system_with_schema},
+                {"role": "user", "content": user},
+            ]
 
         body = self._build_body(
             messages=messages,
@@ -388,6 +432,7 @@ class LLMClient:
             thinking=thinking,
             temperature=temperature,
             response_format=response_format,
+            max_tokens=max_tokens,
             plugins=plugins,
         )
 
@@ -421,7 +466,8 @@ class LLMClient:
                 return await self.complete_structured(
                     system=system, user=user, response_schema=response_schema,
                     model=model, temperature=temperature, thinking=thinking,
-                    plugins=plugins, _retry_count=_retry_count + 1,
+                    max_tokens=max_tokens, plugins=plugins,
+                    _retry_count=_retry_count + 1,
                 )
             raise LLMParseError(
                 f"Empty response after 3 attempts for {response_schema.__name__}"
@@ -466,6 +512,7 @@ class LLMClient:
         model: str | None = None,
         temperature: float = 0.1,
         thinking: str = "off",
+        max_tokens: int = 32000,
         on_thinking: Callable[[str], Awaitable[None]] | None = None,
         plugins: list[dict] | None = None,
     ) -> tuple[BaseModel, dict]:
@@ -481,7 +528,7 @@ class LLMClient:
             return await self.complete_structured(
                 system=system, user=user, response_schema=response_schema,
                 model=model, temperature=temperature, thinking=thinking,
-                plugins=plugins,
+                max_tokens=max_tokens, plugins=plugins,
             )
 
         raw_schema = response_schema.model_json_schema()
@@ -493,8 +540,8 @@ class LLMClient:
         if is_anthropic:
             response_format = {"type": "json_object"}
             schema_instruction = (
-                f"\n\nYou MUST respond with valid JSON matching this schema:\n"
-                f"```json\n{json.dumps(cleaned_schema, indent=2)}\n```"
+                f"\n\nRespond with valid JSON object. "
+                f"Field types: {_compact_schema_hint(cleaned_schema)}"
             )
             system_with_schema = system + schema_instruction
         else:
@@ -507,10 +554,26 @@ class LLMClient:
             }
             system_with_schema = system
 
-        messages = [
-            {"role": "system", "content": system_with_schema},
-            {"role": "user", "content": user},
-        ]
+        # Build messages — Anthropic gets cache_control for prompt caching
+        if is_anthropic:
+            messages = [
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": system_with_schema,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                },
+                {"role": "user", "content": user},
+            ]
+        else:
+            messages = [
+                {"role": "system", "content": system_with_schema},
+                {"role": "user", "content": user},
+            ]
 
         body = self._build_body(
             messages=messages,
@@ -518,6 +581,7 @@ class LLMClient:
             thinking=thinking,
             temperature=temperature,
             response_format=response_format,
+            max_tokens=max_tokens,
             plugins=plugins,
         )
         body["stream"] = True
@@ -543,7 +607,7 @@ class LLMClient:
                     return await self.complete_structured(
                         system=system, user=user, response_schema=response_schema,
                         model=model, temperature=temperature, thinking=thinking,
-                        plugins=plugins,
+                        max_tokens=max_tokens, plugins=plugins,
                     )
 
                 async for line in response.aiter_lines():
@@ -593,7 +657,7 @@ class LLMClient:
                 return await self.complete_structured(
                     system=system, user=user, response_schema=response_schema,
                     model=model, temperature=temperature, thinking=thinking,
-                    plugins=plugins,
+                    max_tokens=max_tokens, plugins=plugins,
                 )
 
             # Parse accumulated content
@@ -612,7 +676,7 @@ class LLMClient:
                 return await self.complete_structured(
                     system=system, user=user, response_schema=response_schema,
                     model=model, temperature=temperature, thinking=thinking,
-                    plugins=plugins,
+                    max_tokens=max_tokens, plugins=plugins,
                 )
 
             try:
@@ -645,7 +709,7 @@ class LLMClient:
             return await self.complete_structured(
                 system=system, user=user, response_schema=response_schema,
                 model=model, temperature=temperature, thinking=thinking,
-                plugins=plugins,
+                max_tokens=max_tokens, plugins=plugins,
             )
 
     async def _retry_with_correction(
