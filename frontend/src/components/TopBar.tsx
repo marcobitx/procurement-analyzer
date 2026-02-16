@@ -13,6 +13,7 @@ interface Props {
   onDismissError: () => void;
   onNavigate: (view: AppView) => void;
   onCancel?: () => void;
+  onNewAnalysis?: () => void;
 }
 
 /** Breadcrumb trail segments per view */
@@ -56,7 +57,7 @@ function formatTime(sec: number) {
   return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`;
 }
 
-export default function TopBar({ currentView, error, onDismissError, onNavigate, onCancel }: Props) {
+export default function TopBar({ currentView, error, onDismissError, onNavigate, onCancel, onNewAnalysis }: Props) {
   const state = useStore(appStore);
   const status = state.analysisStatus;
   const crumbs = getBreadcrumbs(currentView, state.reviewMode);
@@ -174,7 +175,7 @@ export default function TopBar({ currentView, error, onDismissError, onNavigate,
           {(currentView === 'results' || (currentView === 'analyzing' && state.reviewMode)) && (
             <Tooltip content="Pradėti naują analizę (Alt+N)" side="bottom">
               <button
-                onClick={() => onNavigate('upload')}
+                onClick={() => onNewAnalysis ? onNewAnalysis() : onNavigate('upload')}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg
                          bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 hover:text-brand-300
                          border border-brand-500/20 transition-all text-[12px] font-semibold"

@@ -1,47 +1,67 @@
 // frontend/src/components/ChatPanel.tsx
 // Slide-in chat panel — Q&A about completed analysis with streaming responses
-// Fixed right panel with message history, suggested questions, and input
-// Related: api.ts (streamChat, getChatHistory), ResultsView.tsx
+// Floating rounded panel with backdrop, matching ModelPanel/FilesPanel style
+// Related: api.ts (streamChat, getChatHistory), ResultsPanel.tsx
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, Loader2, MessageSquare, Bot, User, Cpu, RotateCcw } from 'lucide-react';
 import { streamChat, getChatHistory, type ChatMessage } from '../lib/api';
 import { SUGGESTIONS } from '../lib/chatConfig';
 import Tooltip from './Tooltip';
+import { clsx } from 'clsx';
 
 interface Props {
   analysisId: string;
+  open: boolean;
   onClose: () => void;
 }
 
-export default function ChatPanel({ analysisId, onClose }: Props) {
+export default function ChatPanel({ analysisId, open, onClose }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [currentChunks, setCurrentChunks] = useState('');
+  const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Animate in on mount
+  // Animate open/close matching ModelPanel pattern
   useEffect(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setAnimating(true));
-    });
-  }, []);
+    if (open) {
+      setVisible(true);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnimating(true));
+      });
+    } else if (visible) {
+      setAnimating(false);
+      const timer = setTimeout(() => setVisible(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
 
   // Smooth close handler
   const handleClose = useCallback(() => {
-    setAnimating(false);
-    setTimeout(() => onClose(), 300);
+    onClose();
   }, [onClose]);
 
+  // Escape key
   useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') handleClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, handleClose]);
+
+  useEffect(() => {
+    if (!open) return;
     (async () => {
       try {
         setMessages(await getChatHistory(analysisId));
       } catch { /* ignore */ }
     })();
-  }, [analysisId]);
+  }, [analysisId, open]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -77,23 +97,47 @@ export default function ChatPanel({ analysisId, onClose }: Props) {
     }
   };
 
+  if (!visible) return null;
+
   return (
-    <div className={`fixed inset-y-0 right-0 w-full max-w-md z-50 flex flex-col
-                    bg-surface-950/98 backdrop-blur-3xl border-l border-surface-700/50
-                    shadow-[-12px_0_60px_rgba(0,0,0,0.5)]
-                    transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
-                    ${animating ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div
+        className={clsx(
+          "absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
+          animating ? "opacity-100" : "opacity-0"
+        )}
+        onClick={handleClose}
+      />
+
+      {/* Panel */}
+      <div
+        className={clsx(
+          "relative w-full max-w-md flex flex-col shadow-2xl",
+          "bg-surface-950 border border-surface-700/60",
+          "my-2 mr-2 rounded-[10px] overflow-hidden",
+          "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          animating
+            ? "translate-x-0 opacity-100"
+            : "translate-x-[105%] opacity-0"
+        )}
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI Asistentas"
+      >
 
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-5 h-14 border-b border-surface-700/50 flex-shrink-0">
-        <MessageSquare className="w-4 h-4 text-accent-400" />
-        <span className="text-[14px] font-bold text-surface-100 flex-1 tracking-tight">
-          AI Agentas
-        </span>
+      <div className="h-14 flex items-center justify-between px-5 border-b border-surface-700/50 bg-surface-950/80 backdrop-blur-md flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <MessageSquare className="w-4 h-4 text-brand-400" />
+          <h2 className="text-[14px] font-bold text-white uppercase tracking-wider">
+            AI Agentas
+          </h2>
+        </div>
         <Tooltip content="Uždaryti pokalbį" side="bottom">
           <button
             onClick={handleClose}
-            className="p-2 rounded-xl hover:bg-surface-700/40 text-surface-500 hover:text-surface-300 transition-all"
+            className="p-1.5 rounded-lg hover:bg-white/[0.06] text-surface-400 hover:text-surface-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -226,6 +270,7 @@ export default function ChatPanel({ analysisId, onClose }: Props) {
             </button>
           </Tooltip>
         </div>
+      </div>
       </div>
     </div>
   );

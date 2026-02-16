@@ -406,6 +406,30 @@ export function stopAnalysisStream() {
   clearTimer();
 }
 
+/** Reset all analysis-related state for starting a fresh analysis */
+export function resetForNewAnalysis() {
+  stopAnalysisStream();
+  appStore.setState({
+    view: 'upload',
+    currentAnalysisId: null,
+    files: [],
+    error: null,
+    analysisStatus: null,
+    analysisElapsedSec: 0,
+    parsedDocs: [],
+    analysisSnapshot: null,
+    cachedAnalysis: null,
+    reviewMode: false,
+    streamEvents: [],
+    streamStatus: 'QUEUED',
+    streamThinking: {},
+    streamThinkingActive: false,
+    streamStepTimes: {},
+    streamElapsedSec: 0,
+    streamStartTime: null,
+  });
+}
+
 export function isStreamActive(): boolean {
   return closeStream !== null;
 }

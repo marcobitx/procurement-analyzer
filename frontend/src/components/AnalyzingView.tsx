@@ -400,7 +400,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
               </div>
               {/* CoT bar — always visible when thinking was captured, content toggleable */}
               {hasCot && (
-                <div className="ml-[4.5rem] mr-5 mb-1 rounded-xl border border-surface-600/35 overflow-hidden">
+                <div className="ml-[4.5rem] mr-5 mb-1 rounded-xl border border-surface-500/50 overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setCotCollapsedMap((prev) => ({ ...prev, [i]: prev[i] === false ? true : false }))}
@@ -408,7 +408,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                   >
                     <div className="w-1.5 h-1.5 rounded-full bg-violet-400/30" />
                     <span className="text-[9px] font-black text-surface-500 uppercase tracking-widest">
-                      Modelio mąstymas
+                      Galvoju
                     </span>
                     <ChevronDown className={`w-3 h-3 text-surface-500 ml-auto transition-transform duration-200 ${isCotOpen ? '' : '-rotate-90'}`} />
                   </button>
@@ -416,7 +416,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                     isCotOpen ? 'max-h-[200px]' : 'max-h-0'
                   }`}>
                     <div
-                      className="px-3 py-2 border-t border-surface-600/35
+                      className="px-3 py-2 border-t border-surface-500/50
                                  max-h-[150px] overflow-y-auto scrollbar-thin
                                  text-[11px] text-surface-400 font-mono leading-relaxed
                                  whitespace-pre-wrap break-words"
@@ -431,7 +431,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
               {i === 1 && extractionDocs.length > 0 ? (() => {
                 const isLogOpen = logCollapsedMap[i] === false;
                 return (
-                  <div className="ml-[4.5rem] mr-5 mb-1 rounded-xl border border-surface-600/35 overflow-hidden">
+                  <div className="ml-[4.5rem] mr-5 mb-1 rounded-xl border border-surface-500/50 overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setLogCollapsedMap((prev) => ({ ...prev, [i]: isLogOpen }))}
@@ -449,7 +449,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
                       isLogOpen ? 'max-h-[280px]' : 'max-h-0'
                     }`}>
-                      <div className="px-3 py-2 border-t border-surface-600/35 max-h-[230px] overflow-y-auto scrollbar-thin space-y-1">
+                      <div className="px-3 py-2 border-t border-surface-500/50 max-h-[230px] overflow-y-auto scrollbar-thin space-y-1">
                         {extractionDocs.map((doc) => {
                           const ext = doc.filename.split('.').pop() || '';
                           const durationMs = doc.startTime && doc.endTime ? doc.endTime - doc.startTime : null;
@@ -481,7 +481,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                 const c = LOG_COLORS[i];
                 const isLogOpen = logCollapsedMap[i] === false;
                 return (
-                  <div className="ml-[4.5rem] mr-5 mb-1 rounded-xl border border-surface-600/35 overflow-hidden">
+                  <div className="ml-[4.5rem] mr-5 mb-1 rounded-xl border border-surface-500/50 overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setLogCollapsedMap((prev) => ({ ...prev, [i]: isLogOpen }))}
@@ -499,7 +499,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
                       isLogOpen ? 'max-h-[250px]' : 'max-h-0'
                     }`}>
-                      <div className="px-3 py-2 border-t border-surface-600/35 max-h-[200px] overflow-y-auto scrollbar-thin space-y-1">
+                      <div className="px-3 py-2 border-t border-surface-500/50 max-h-[200px] overflow-y-auto scrollbar-thin space-y-1">
                         {eventsForStep.map((e, j) => {
                           const fmt = formatEvent(e);
                           return (
@@ -555,7 +555,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
 
               {/* CoT box — manually toggleable card */}
               {stepThinking[i] && (
-                <div className="ml-[4.5rem] mr-5 rounded-xl border border-surface-600/35 overflow-hidden">
+                <div className="ml-[4.5rem] mr-5 rounded-xl border border-surface-500/50 overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setCotCollapsedMap((prev) => ({ ...prev, [i]: !prev[i] }))}
@@ -563,7 +563,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                   >
                     <div className={`w-1.5 h-1.5 rounded-full ${thinkingStreaming ? 'bg-violet-400 animate-pulse' : 'bg-violet-400/30'}`} />
                     <span className="text-[9px] font-black text-surface-500 uppercase tracking-widest">
-                      Modelio mąstymas
+                      Galvoju
                     </span>
                     <ChevronDown className={`w-3 h-3 text-surface-500 ml-auto transition-transform duration-200 ${cotCollapsedMap[i] ? '-rotate-90' : ''}`} />
                   </button>
@@ -572,7 +572,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                   }`}>
                     <div
                       ref={thinkingRef}
-                      className="px-3 py-2 border-t border-surface-600/35
+                      className="px-3 py-2 border-t border-surface-500/50
                                  max-h-[150px] overflow-y-auto scrollbar-thin
                                  text-[11px] text-surface-400 font-mono leading-relaxed
                                  whitespace-pre-wrap break-words"
@@ -587,7 +587,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
               {/* Extraction step (i===1): document checklist instead of event log */}
               {/* Other steps: standard event log */}
               {i === 1 && extractionDocs.length > 0 ? (
-                <div className="ml-[4.5rem] mr-5 rounded-xl border border-surface-600/35 overflow-hidden">
+                <div className="ml-[4.5rem] mr-5 rounded-xl border border-surface-500/50 overflow-hidden">
                   <div className="px-3 py-2 max-h-[280px] overflow-y-auto scrollbar-thin space-y-1" aria-live="polite" aria-label="Dokumentų ištraukimo progresas">
                     {extractionDocs.map((doc) => {
                       const ext = doc.filename.split('.').pop() || '';
@@ -643,7 +643,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                 const c = LOG_COLORS[i];
                 const isLogOpen = logCollapsedMap[i] !== true; // open by default for active step
                 return (
-                  <div className="ml-[4.5rem] mr-5 rounded-xl border border-surface-600/35 overflow-hidden">
+                  <div className="ml-[4.5rem] mr-5 rounded-xl border border-surface-500/50 overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setLogCollapsedMap((prev) => ({ ...prev, [i]: isLogOpen }))}
@@ -661,7 +661,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
                       isLogOpen ? 'max-h-[250px]' : 'max-h-0'
                     }`}>
-                      <div className="px-3 py-2 border-t border-surface-600/35 max-h-[200px] overflow-y-auto scrollbar-thin space-y-1" aria-live="polite" aria-label="Analizės įvykiai">
+                      <div className="px-3 py-2 border-t border-surface-500/50 max-h-[200px] overflow-y-auto scrollbar-thin space-y-1" aria-live="polite" aria-label="Analizės įvykiai">
                         {eventsForStep.map((e, j) => {
                           const fmt = formatEvent(e);
                           return (

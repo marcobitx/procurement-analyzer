@@ -188,13 +188,16 @@ def _extract_json(raw: str) -> str:
 
 def _clean_json_schema(schema: dict) -> dict:
     """
-    Recursively remove unsupported keys from a JSON schema for OpenRouter strict mode.
-    Removes 'title', 'default', and '$defs'/'definitions' at the top level are kept
-    but titles inside are stripped.
+    Recursively clean a JSON schema for OpenRouter / Anthropic strict mode.
+    - Removes 'title' and 'description' keys (descriptions bloat the grammar;
+      field semantics are conveyed via the system prompt instead)
+    - Removes 'default' keys (unsupported by strict mode)
+    - Adds 'additionalProperties': false to every object type
+      (required by Claude for structured outputs)
     """
     cleaned: dict = {}
     for key, value in schema.items():
-        if key in ("title",):
+        if key in ("title", "description", "default"):
             continue
         if isinstance(value, dict):
             cleaned[key] = _clean_json_schema(value)
@@ -205,6 +208,11 @@ def _clean_json_schema(schema: dict) -> dict:
             ]
         else:
             cleaned[key] = value
+
+    # Anthropic requires additionalProperties: false on all object types
+    if cleaned.get("type") == "object" and "additionalProperties" not in cleaned:
+        cleaned["additionalProperties"] = False
+
     return cleaned
 
 
@@ -349,16 +357,28 @@ class LLMClient:
         raw_schema = response_schema.model_json_schema()
         cleaned_schema = _clean_json_schema(raw_schema)
 
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": response_schema.__name__,
-                "schema": cleaned_schema,
-            },
-        }
+        resolved_model = model or self.default_model
+        is_anthropic = resolved_model.startswith("anthropic/")
+
+        if is_anthropic:
+            response_format = {"type": "json_object"}
+            schema_instruction = (
+                f"\n\nYou MUST respond with valid JSON matching this schema:\n"
+                f"```json\n{json.dumps(cleaned_schema, indent=2)}\n```"
+            )
+            system_with_schema = system + schema_instruction
+        else:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": response_schema.__name__,
+                    "schema": cleaned_schema,
+                },
+            }
+            system_with_schema = system
 
         messages = [
-            {"role": "system", "content": system},
+            {"role": "system", "content": system_with_schema},
             {"role": "user", "content": user},
         ]
 
@@ -467,16 +487,28 @@ class LLMClient:
         raw_schema = response_schema.model_json_schema()
         cleaned_schema = _clean_json_schema(raw_schema)
 
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": response_schema.__name__,
-                "schema": cleaned_schema,
-            },
-        }
+        resolved_model = model or self.default_model
+        is_anthropic = resolved_model.startswith("anthropic/")
+
+        if is_anthropic:
+            response_format = {"type": "json_object"}
+            schema_instruction = (
+                f"\n\nYou MUST respond with valid JSON matching this schema:\n"
+                f"```json\n{json.dumps(cleaned_schema, indent=2)}\n```"
+            )
+            system_with_schema = system + schema_instruction
+        else:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": response_schema.__name__,
+                    "schema": cleaned_schema,
+                },
+            }
+            system_with_schema = system
 
         messages = [
-            {"role": "system", "content": system},
+            {"role": "system", "content": system_with_schema},
             {"role": "user", "content": user},
         ]
 
@@ -648,13 +680,19 @@ class LLMClient:
             },
         ]
 
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": response_schema.__name__,
-                "schema": cleaned_schema,
-            },
-        }
+        resolved_model = model or self.default_model
+        is_anthropic = resolved_model.startswith("anthropic/")
+
+        if is_anthropic:
+            response_format = {"type": "json_object"}
+        else:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": response_schema.__name__,
+                    "schema": cleaned_schema,
+                },
+            }
 
         body = self._build_body(
             messages=correction_messages,

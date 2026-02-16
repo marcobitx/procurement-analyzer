@@ -167,6 +167,49 @@ async def export_pdf(
     )
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    # Register fonts with Lithuanian character support
+    _LT_FONT = "Calibri"
+    _LT_FONT_BOLD = "Calibri-Bold"
+    _LT_FONT_ITALIC = "Calibri-Italic"
+    _LT_FONT_BI = "Calibri-BoldItalic"
+
+    _font_paths = {
+        _LT_FONT: Path("C:/Windows/Fonts/calibri.ttf"),
+        _LT_FONT_BOLD: Path("C:/Windows/Fonts/calibrib.ttf"),
+        _LT_FONT_ITALIC: Path("C:/Windows/Fonts/calibrii.ttf"),
+        _LT_FONT_BI: Path("C:/Windows/Fonts/calibriz.ttf"),
+    }
+    # Fallback to Arial if Calibri not found
+    if not _font_paths[_LT_FONT].exists():
+        _font_paths = {
+            _LT_FONT: Path("C:/Windows/Fonts/arial.ttf"),
+            _LT_FONT_BOLD: Path("C:/Windows/Fonts/arialbd.ttf"),
+            _LT_FONT_ITALIC: Path("C:/Windows/Fonts/ariali.ttf"),
+            _LT_FONT_BI: Path("C:/Windows/Fonts/arialbi.ttf"),
+        }
+
+    for font_name, font_path in _font_paths.items():
+        if font_path.exists():
+            try:
+                pdfmetrics.registerFont(TTFont(font_name, str(font_path)))
+            except Exception:
+                logger.warning("Failed to register font: %s from %s", font_name, font_path)
+
+    # Register font family for automatic bold/italic switching in <b>/<i> tags
+    from reportlab.pdfbase.pdfmetrics import registerFontFamily
+    try:
+        registerFontFamily(
+            _LT_FONT,
+            normal=_LT_FONT,
+            bold=_LT_FONT_BOLD,
+            italic=_LT_FONT_ITALIC,
+            boldItalic=_LT_FONT_BI,
+        )
+    except Exception:
+        logger.warning("Failed to register font family for %s", _LT_FONT)
 
     # Create temp file
     tmp = tempfile.NamedTemporaryFile(
@@ -188,11 +231,15 @@ async def export_pdf(
 
     styles = getSampleStyleSheet()
 
-    # Custom styles
+    # Override base Normal font for Lithuanian character support
+    styles["Normal"].fontName = _LT_FONT
+
+    # Custom styles — all use _LT_FONT for Lithuanian characters
     styles.add(
         ParagraphStyle(
             "TitleLT",
             parent=styles["Title"],
+            fontName=_LT_FONT_BOLD,
             fontSize=18,
             spaceAfter=6,
         )
@@ -201,6 +248,7 @@ async def export_pdf(
         ParagraphStyle(
             "SubtitleLT",
             parent=styles["Normal"],
+            fontName=_LT_FONT,
             fontSize=10,
             textColor=HexColor("#666666"),
             alignment=TA_CENTER,
@@ -211,6 +259,7 @@ async def export_pdf(
         ParagraphStyle(
             "Heading2LT",
             parent=styles["Heading2"],
+            fontName=_LT_FONT_BOLD,
             fontSize=13,
             spaceBefore=12,
             spaceAfter=6,
@@ -220,6 +269,7 @@ async def export_pdf(
         ParagraphStyle(
             "Heading3LT",
             parent=styles["Heading3"],
+            fontName=_LT_FONT_BOLD,
             fontSize=11,
             spaceBefore=8,
             spaceAfter=4,
@@ -229,6 +279,7 @@ async def export_pdf(
         ParagraphStyle(
             "BulletLT",
             parent=styles["Normal"],
+            fontName=_LT_FONT,
             leftIndent=20,
             bulletIndent=10,
             spaceBefore=2,
@@ -239,6 +290,7 @@ async def export_pdf(
         ParagraphStyle(
             "FooterLT",
             parent=styles["Normal"],
+            fontName=_LT_FONT,
             fontSize=8,
             textColor=HexColor("#999999"),
             alignment=TA_CENTER,
@@ -420,6 +472,8 @@ async def export_pdf(
         table.setStyle(
             TableStyle(
                 [
+                    ("FONTNAME", (0, 0), (-1, -1), _LT_FONT),
+                    ("FONTNAME", (0, 0), (-1, 0), _LT_FONT_BOLD),
                     ("BACKGROUND", (0, 0), (-1, 0), HexColor("#4472C4")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTSIZE", (0, 0), (-1, 0), 9),
@@ -472,6 +526,8 @@ async def export_pdf(
 
         # Color-code severity in the table
         table_style_cmds = [
+            ("FONTNAME", (0, 0), (-1, -1), _LT_FONT),
+            ("FONTNAME", (0, 0), (-1, 0), _LT_FONT_BOLD),
             ("BACKGROUND", (0, 0), (-1, 0), HexColor("#C62828")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTSIZE", (0, 0), (-1, 0), 9),
@@ -501,6 +557,8 @@ async def export_pdf(
         lot_table.setStyle(
             TableStyle(
                 [
+                    ("FONTNAME", (0, 0), (-1, -1), _LT_FONT),
+                    ("FONTNAME", (0, 0), (-1, 0), _LT_FONT_BOLD),
                     ("BACKGROUND", (0, 0), (-1, 0), HexColor("#4472C4")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTSIZE", (0, 0), (-1, 0), 9),

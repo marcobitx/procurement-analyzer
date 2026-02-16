@@ -1,0 +1,477 @@
+NFO:     127.0.0.1:52716 - "POST /api/analyze HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:59794 - "GET /api/analyze/j57efrhf0mtnxcj8bk1hwvc4x5819s3c/stream HTTP/1.1" 200 OK
+Consider using the pymupdf_layout package for a greatly improved page layout analysis.
+Streaming request failed (400), falling back to non-streaming
+Streaming request failed (400), falling back to non-streaming
+Streaming request failed (400), falling back to non-streaming
+Streaming request failed (400), falling back to non-streaming
+Streaming structured completion failed (API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSemGLyX9b6sr7D67jr\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}), falling back to non-streaming
+Streaming structured completion failed (API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSembSLgeYvb8cdffmh\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}), falling back to non-streaming
+Streaming structured completion failed (API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSeqg1KaP17W7riFTSv\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}), falling back to non-streaming
+Streaming extraction failed for 6477383_Skelbimas apie pirkimą - bendroji direktyva, įprasta tvarka_0.pdf, retrying non-streaming: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSetszQ8RmuuepJKtpL\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Streaming extraction failed for Bendrosios pirkimo sąlygos.docx, retrying non-streaming: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSeuKnB1sx2UAVTtcrf\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Streaming structured completion failed (API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSetPU9duKwLohcn13S\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}), falling back to non-streaming
+Streaming extraction failed for espd-request.pdf, retrying non-streaming: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSeuxyP2LWhrFHUgPYA\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Streaming extraction failed for Specialiosios pirkimo sąlygos.docx, retrying non-streaming: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSf3NxwV62SFt4suvJr\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Extraction failed for 6477383_Skelbimas apie pirkimą - bendroji direktyva, įprasta tvarka_0.pdf: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfA6n4EshBZqM9SJ1g\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 519, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSembSLgeYvb8cdffmh\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 305, in extract_document
+    result, usage = await _extract_single(doc, llm, model, on_thinking=on_thinking)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 165, in _extract_single
+    result, usage = await llm.complete_structured_streaming(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 621, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSetszQ8RmuuepJKtpL\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 312, in extract_document
+    result, usage = await _extract_single(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+        doc, llm, model, on_thinking=on_thinking, use_streaming=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 174, in _extract_single
+    result, usage = await llm.complete_structured(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfA6n4EshBZqM9SJ1g\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Extraction failed for Bendrosios pirkimo sąlygos.docx: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfAijexvJsXqHvGHsY\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 519, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSeqg1KaP17W7riFTSv\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 305, in extract_document
+    result, usage = await _extract_single(doc, llm, model, on_thinking=on_thinking)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 165, in _extract_single
+    result, usage = await llm.complete_structured_streaming(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 621, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSeuKnB1sx2UAVTtcrf\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 312, in extract_document
+    result, usage = await _extract_single(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+        doc, llm, model, on_thinking=on_thinking, use_streaming=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 174, in _extract_single
+    result, usage = await llm.complete_structured(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfAijexvJsXqHvGHsY\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Extraction failed for espd-request.pdf: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfC8ZspRPiFrajMBvj\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 519, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSemGLyX9b6sr7D67jr\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 305, in extract_document
+    result, usage = await _extract_single(doc, llm, model, on_thinking=on_thinking)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 165, in _extract_single
+    result, usage = await llm.complete_structured_streaming(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 621, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSeuxyP2LWhrFHUgPYA\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 312, in extract_document
+    result, usage = await _extract_single(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+        doc, llm, model, on_thinking=on_thinking, use_streaming=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 174, in _extract_single
+    result, usage = await llm.complete_structured(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfC8ZspRPiFrajMBvj\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Streaming request failed (400), falling back to non-streaming
+Streaming request failed (400), falling back to non-streaming
+Extraction failed for Specialiosios pirkimo sąlygos.docx: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfM36gD2zvYL2TfAfA\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 519, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSetPU9duKwLohcn13S\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 305, in extract_document
+    result, usage = await _extract_single(doc, llm, model, on_thinking=on_thinking)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 165, in _extract_single
+    result, usage = await llm.complete_structured_streaming(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 621, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSf3NxwV62SFt4suvJr\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 312, in extract_document
+    result, usage = await _extract_single(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+        doc, llm, model, on_thinking=on_thinking, use_streaming=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 174, in _extract_single
+    result, usage = await llm.complete_structured(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfM36gD2zvYL2TfAfA\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Streaming structured completion failed (API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfP3txgLbX3PtFUbm1\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}), falling back to non-streaming
+Streaming extraction failed for 1124_6477383.pdf, retrying non-streaming: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfTPbKQbhbHwXHekgj\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Streaming structured completion failed (API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfTzoTqcqreMSyaipY\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}), falling back to non-streaming
+Streaming extraction failed for Specialiųjų pirkimo sąlygų 10 priedas.docx, retrying non-streaming: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfcuq2GN1WZVrcQ8B6\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Extraction failed for 1124_6477383.pdf: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfhn2atZppdps81Tzi\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 519, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfP3txgLbX3PtFUbm1\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 305, in extract_document
+    result, usage = await _extract_single(doc, llm, model, on_thinking=on_thinking)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 165, in _extract_single
+    result, usage = await llm.complete_structured_streaming(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 621, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfTPbKQbhbHwXHekgj\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 312, in extract_document
+    result, usage = await _extract_single(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+        doc, llm, model, on_thinking=on_thinking, use_streaming=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 174, in _extract_single
+    result, usage = await llm.complete_structured(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfhn2atZppdps81Tzi\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Extraction failed for Specialiųjų pirkimo sąlygų 10 priedas.docx: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfvx37wKa4Fkev9Wff\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 519, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfTzoTqcqreMSyaipY\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 305, in extract_document
+    result, usage = await _extract_single(doc, llm, model, on_thinking=on_thinking)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 165, in _extract_single
+    result, usage = await llm.complete_structured_streaming(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 621, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfcuq2GN1WZVrcQ8B6\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 312, in extract_document
+    result, usage = await _extract_single(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+        doc, llm, model, on_thinking=on_thinking, use_streaming=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\extraction.py", line 174, in _extract_single
+    result, usage = await llm.complete_structured(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSfvx37wKa4Fkev9Wff\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Streaming request failed (400), falling back to non-streaming
+Streaming structured completion failed (API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSg9aoS5DxDNRYnXmUq\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}), falling back to non-streaming
+Pipeline failed for j57efrhf0mtnxcj8bk1hwvc4x5819s3c: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSgGYkPqcYYVDKj2obb\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 519, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSg9aoS5DxDNRYnXmUq\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\pipeline.py", line 204, in run
+    report, agg_usage = await aggregate_results(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\aggregation.py", line 132, in aggregate_results
+    report, usage = await llm.complete_structured_streaming(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 621, in complete_structured_streaming
+    return await self.complete_structured(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 387, in complete_structured
+    response = await self._request_with_retry("POST", "/chat/completions", json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nj\projects\procurement-analyzer\backend\app\services\llm.py", line 275, in _request_with_retry
+    raise LLMError(
+    ...<3 lines>...
+    )
+app.services.llm.LLMError: API error 400: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CYBSgGYkPqcYYVDKj2obb\"}","provider_name":"Anthropic","is_byok":false}},"user_id":"user_2wOTNW0RHoa2iO64DMYfUTYiSU8"}

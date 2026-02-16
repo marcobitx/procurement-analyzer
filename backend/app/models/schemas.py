@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
@@ -123,6 +125,24 @@ class FinancialTerms(BaseModel):
     def _coerce_currency(cls, v: Any) -> str:
         return v if v is not None else "EUR"
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_str_fields(cls, values: Any) -> Any:
+        """LLM sometimes returns nested dicts for string fields — flatten to str."""
+        if not isinstance(values, dict):
+            return values
+        str_fields = [
+            "payment_terms", "advance_payment", "guarantee_requirements",
+            "guarantee_amount", "price_adjustment", "insurance_requirements",
+        ]
+        for field in str_fields:
+            v = values.get(field)
+            if isinstance(v, dict):
+                values[field] = json.dumps(v, ensure_ascii=False)
+            elif isinstance(v, list):
+                values[field] = "; ".join(str(x) for x in v)
+        return values
+
 
 class SubmissionRequirements(BaseModel):
     submission_method: Optional[str] = Field(None, description="Pateikimo būdas (CVP IS, el. paštu, etc.)")
@@ -142,9 +162,23 @@ class RiskFactor(BaseModel):
 
 
 class TechnicalSpecification(BaseModel):
-    description: str = Field(..., description="Techninės specifikacijos punktas")
+    description: str = Field("", description="Techninės specifikacijos punktas")
     mandatory: bool = Field(True, description="Ar privalomas reikalavimas")
     details: Optional[str] = Field(None, description="Papildomi detalės/paaiškinimai")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return {"description": v, "mandatory": True}
+        if isinstance(v, dict):
+            # LLM sometimes puts description text into 'details' and omits 'description'
+            if not v.get("description") and v.get("details"):
+                v["description"] = v.pop("details")
+            # Fallback: if still no description, use any available text
+            if not v.get("description"):
+                v["description"] = v.get("details") or v.get("name") or v.get("requirement") or "(nenurodyta)"
+        return v
 
 
 class LotInfo(BaseModel):
@@ -179,6 +213,19 @@ class SourceReference(BaseModel):
     page: Optional[int] = Field(None, description="Puslapio numeris (jei žinomas)")
     section: Optional[str] = Field(None, description="Dokumento skyriaus pavadinimas")
     filename: Optional[str] = Field(None, description="Šaltinio failo pavadinimas")
+
+    @field_validator("page", mode="before")
+    @classmethod
+    def _coerce_page(cls, v: Any) -> Optional[int]:
+        if v is None:
+            return None
+        if isinstance(v, int):
+            return v
+        if isinstance(v, str):
+            # Handle ranges like "6-10" -> take first number
+            m = re.search(r"\d+", v)
+            return int(m.group()) if m else None
+        return None
 
 
 # ── Main extraction result (per-document and aggregated) ───────────────────────
@@ -285,6 +332,9 @@ class ExtractionResult(BaseModel):
                     values[field] = []
                 elif isinstance(v, str):
                     values[field] = [v] if v.strip() else []
+                elif isinstance(v, dict):
+                    # LLM sometimes returns a single object instead of a list
+                    values[field] = [v]
         return values
 
 

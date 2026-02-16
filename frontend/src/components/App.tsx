@@ -6,7 +6,7 @@
 import { useCallback, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { Plus, Clock, Settings } from 'lucide-react';
-import { appStore, useStore, stopAnalysisStream, createNote, setNotesFilter, type AppView } from '../lib/store';
+import { appStore, useStore, stopAnalysisStream, resetForNewAnalysis, createNote, setNotesFilter, type AppView } from '../lib/store';
 import { cancelAnalysis } from '../lib/api';
 import IconSidebar from './IconSidebar';
 import RightPanel from './RightPanel';
@@ -47,6 +47,10 @@ export default function App() {
       error: null,
     });
   }, [state.view, state.currentAnalysisId]);
+
+  const handleNewAnalysis = useCallback(() => {
+    resetForNewAnalysis();
+  }, []);
 
   const handleCancel = useCallback(async () => {
     if (!state.currentAnalysisId) return;
@@ -101,7 +105,7 @@ export default function App() {
         return (
           <HistoryView
             onSelect={(id) => navigate('results', id)}
-            onNew={() => navigate('upload')}
+            onNew={handleNewAnalysis}
             onViewNotes={(analysisId) => {
               setNotesFilter({ analysisId });
               navigate('notes');
@@ -153,7 +157,7 @@ export default function App() {
 
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
-        navigate('upload');
+        handleNewAnalysis();
       } else if (e.altKey && e.key.toLowerCase() === 'h') {
         e.preventDefault();
         navigate('history');
@@ -215,6 +219,7 @@ export default function App() {
           onDismissError={() => appStore.setState({ error: null })}
           onNavigate={navigate}
           onCancel={handleCancel}
+          onNewAnalysis={handleNewAnalysis}
         />
 
         <div className="flex-1 flex overflow-hidden min-h-0">
@@ -238,7 +243,7 @@ export default function App() {
           return (
             <button
               key={view}
-              onClick={() => navigate(view)}
+              onClick={() => view === 'upload' ? handleNewAnalysis() : navigate(view)}
               className={clsx(
                 'flex flex-col items-center gap-1.5 px-6 py-2 rounded-xl transition-all duration-200',
                 active

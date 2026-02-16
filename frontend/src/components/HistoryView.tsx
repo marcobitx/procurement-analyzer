@@ -3,7 +3,7 @@
 // Shows aggregate metrics at top, filterable/sortable table of all past analyses below
 // Related: api.ts (listAnalyses, deleteAnalysis), App.tsx
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
   Plus,
   Trash2,
@@ -21,6 +21,8 @@ import {
   SlidersHorizontal,
   Eye,
   StickyNote,
+  Check,
+  X,
 } from 'lucide-react';
 import { listAnalyses, deleteAnalysis, listNotes, type AnalysisSummary } from '../lib/api';
 import CustomSelect from './CustomSelect';
@@ -120,6 +122,9 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [notesCountMap, setNotesCountMap] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
@@ -253,9 +258,23 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
     return filteredAnalyses.slice(start, start + pageSize);
   }, [filteredAnalyses, currentPage, pageSize]);
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const startDeleteConfirm = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Tikrai ištrinti šią analizę?')) return;
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setConfirmingDelete(id);
+    confirmTimerRef.current = setTimeout(() => setConfirmingDelete(null), 3000);
+  };
+
+  const cancelDeleteConfirm = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setConfirmingDelete(null);
+  }, []);
+
+  const confirmDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setConfirmingDelete(null);
     setDeleting(id);
     setDeleteError(null);
     try {
@@ -293,9 +312,13 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
     });
   };
 
-  const handleBulkDelete = async () => {
+  const startBulkDeleteConfirm = () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Tikrai ištrinti ${selectedIds.size} ${selectedIds.size === 1 ? 'analizę' : 'analizes'}?`)) return;
+    setConfirmingBulkDelete(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    setConfirmingBulkDelete(false);
     setBulkDeleting(true);
     setDeleteError(null);
     try {
@@ -583,23 +606,49 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
                   Atšaukti
                 </button>
               </div>
-              <Tooltip content={`Ištrinti ${selectedIds.size} pasirinktų analizių`} side="top">
-                <button
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold
-                             text-red-400 bg-red-500/10 border border-red-500/20
-                             hover:bg-red-500/20 transition-all duration-200
-                             disabled:opacity-50"
-                >
-                  {bulkDeleting ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5" />
-                  )}
-                  Ištrinti
-                </button>
-              </Tooltip>
+              {confirmingBulkDelete ? (
+                <div className="flex items-center gap-2 animate-fade-in">
+                  <span className="text-[12px] text-red-400 font-bold">
+                    Tikrai ištrinti {selectedIds.size}?
+                  </span>
+                  <button
+                    onClick={confirmBulkDelete}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold
+                               text-red-400 bg-red-500/20 border border-red-500/30
+                               hover:bg-red-500/30 transition-all duration-150"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Taip
+                  </button>
+                  <button
+                    onClick={() => setConfirmingBulkDelete(false)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold
+                               text-surface-400 bg-surface-700/50 border border-surface-600/30
+                               hover:bg-surface-600/50 transition-all duration-150"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Ne
+                  </button>
+                </div>
+              ) : (
+                <Tooltip content={`Ištrinti ${selectedIds.size} pasirinktų analizių`} side="top">
+                  <button
+                    onClick={startBulkDeleteConfirm}
+                    disabled={bulkDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold
+                               text-red-400 bg-red-500/10 border border-red-500/20
+                               hover:bg-red-500/20 transition-all duration-200
+                               disabled:opacity-50"
+                  >
+                    {bulkDeleting ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                    Ištrinti
+                  </button>
+                </Tooltip>
+              )}
             </div>
           )}
 
@@ -609,8 +658,8 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
             <div className="grid gap-0 px-3 sm:px-5 py-3 border-b border-surface-700/40
                             text-[11px] text-surface-500 font-bold uppercase tracking-widest
                             grid-cols-[32px_1fr_auto_36px]
-                            md:grid-cols-[36px_1fr_100px_100px_90px_40px]
-                            lg:grid-cols-[36px_1fr_150px_100px_100px_90px_44px]">
+                            md:grid-cols-[36px_1fr_100px_100px_90px_120px]
+                            lg:grid-cols-[36px_1fr_150px_100px_100px_90px_140px]">
               {/* Select all checkbox */}
               <div className="flex items-center justify-center">
                 <Tooltip content="Pažymėti visus" side="bottom">
@@ -669,7 +718,7 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
 
             {paginatedAnalyses.map((a, i) => {
               const status = STATUS_META[a.status] || STATUS_META.QUEUED;
-              const clickable = a.status === 'COMPLETED';
+              const clickable = a.status !== 'FAILED' && a.status !== 'CANCELED';
               const isSelected = selectedIds.has(a.id);
 
               return (
@@ -678,8 +727,8 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
                   onClick={() => clickable && onSelect(a.id)}
                   className={`grid gap-0 px-3 sm:px-5 py-3.5 w-full text-left
                              grid-cols-[32px_1fr_auto_36px]
-                             md:grid-cols-[36px_1fr_100px_100px_90px_40px]
-                             lg:grid-cols-[36px_1fr_150px_100px_100px_90px_44px]
+                             md:grid-cols-[36px_1fr_100px_100px_90px_120px]
+                             lg:grid-cols-[36px_1fr_150px_100px_100px_90px_140px]
                              border-b border-surface-700/20 last:border-b-0 group
                              transition-all duration-200
                              hover:bg-surface-800/50 animate-stagger
@@ -790,34 +839,60 @@ export default function HistoryView({ onSelect, onNew, onViewNotes }: Props) {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="relative flex items-center justify-end gap-1.5">
                     {clickable && (
-                      <Tooltip content="Peržiūrėti ataskaitą" side="top">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelect(a.id); }}
+                        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold
+                                   text-brand-400 bg-brand-500/10 border border-brand-500/20
+                                   hover:bg-brand-500/20 hover:border-brand-500/30 transition-all duration-200"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Peržiūrėti
+                      </button>
+                    )}
+                    {confirmingDelete === a.id ? (
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10
+                                      flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
+                                      bg-surface-800 border border-red-500/30 shadow-lg shadow-black/30
+                                      animate-fade-in whitespace-nowrap">
+                        <span className="text-[11px] text-red-400 font-bold">Tikrai?</span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); onSelect(a.id); }}
-                          className="p-1.5 rounded-lg text-surface-500 hover:text-brand-400 hover:bg-brand-500/8
+                          onClick={(e) => confirmDelete(a.id, e)}
+                          className="p-1 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all duration-150"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={cancelDeleteConfirm}
+                          className="p-1 rounded-md bg-surface-700/50 text-surface-400 hover:bg-surface-600/50 transition-all duration-150"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <Tooltip content="Ištrinti analizę" side="top">
+                        <button
+                          onClick={(e) => startDeleteConfirm(a.id, e)}
+                          disabled={deleting === a.id}
+                          className="p-1.5 rounded-lg text-surface-600 hover:text-red-400 hover:bg-red-500/8
                                    opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-200"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          {deleting === a.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       </Tooltip>
                     )}
-                    <Tooltip content="Ištrinti analizę" side="top">
-                      <button
-                        onClick={(e) => handleDelete(a.id, e)}
-                        disabled={deleting === a.id}
-                        className="p-1.5 rounded-lg text-surface-600 hover:text-red-400 hover:bg-red-500/8
-                                 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-200"
-                      >
-                        {deleting === a.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </Tooltip>
                     {clickable && (
-                      <ChevronRight className="w-4 h-4 text-surface-600 group-hover:text-brand-400 transition-colors" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelect(a.id); }}
+                        className="md:hidden p-1.5 rounded-lg text-brand-400 hover:bg-brand-500/10 transition-all duration-200"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
                 </div>

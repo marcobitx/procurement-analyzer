@@ -10,7 +10,7 @@ import {
   PanelLeftClose, PanelLeftOpen, StickyNote,
   LogOut, Activity, Bookmark, ChevronUp,
 } from 'lucide-react';
-import { appStore, useStore, type AppView } from '../lib/store';
+import { appStore, useStore, resetForNewAnalysis, type AppView } from '../lib/store';
 import Tooltip from './Tooltip';
 
 interface Props {
@@ -122,6 +122,8 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
                 onClick={() => {
                   if (view === 'upload' && streamRunning) {
                     onNavigate('analyzing');
+                  } else if (view === 'upload') {
+                    resetForNewAnalysis();
                   } else {
                     onNavigate(view);
                   }
