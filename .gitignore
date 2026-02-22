@@ -58,5 +58,10 @@ docker-compose.override.yml
 tmp/
 temp/
 
+# Logs and error dumps
+*.csv
+error.txt
+logs/
+
 # AI Agent docs (keep private)
 CLAUDE.md
