@@ -174,7 +174,7 @@ export default function HelpPanel() {
           {/* ── Version ──────────────────────────────────── */}
           <div className="pt-4 border-t border-surface-800/40">
             <p className="text-[10px] text-surface-600 font-medium text-center">
-              Pirkimų Analizė Pro v1.0 — Viešųjų pirkimų dokumentų analizatorius
+              foxDoc v1.0 — Viešųjų pirkimų dokumentų analizatorius
             </p>
           </div>
         </div>

@@ -1,11 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ff8c0a"/>
-      <stop offset="100%" stop-color="#f07000"/>
+    <linearGradient id="f" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fcd34d"/>
+      <stop offset="45%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="d" x1=".5" y1="0" x2=".5" y2="1">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <radialGradient id="e" cx=".5" cy=".5" r=".5">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="50%" stop-color="#67e8f9"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </radialGradient>
+    <linearGradient id="l" x1=".3" y1="0" x2=".7" y2="1">
+      <stop offset="0%" stop-color="#ecfeff" stop-opacity=".35"/>
+      <stop offset="100%" stop-color="#67e8f9" stop-opacity=".1"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="8" fill="url(#g)"/>
-  <path d="M10 11h4v10h-4zm8 0h4v10h-4z" fill="white" opacity="0.9"/>
-  <path d="M12 15h8v2h-8z" fill="white" opacity="0.9"/>
+  <!-- Left ear -->
+  <path d="M8 6 L16 22 L3 23Z" fill="url(#f)" stroke="#b45309" stroke-width=".4" stroke-linejoin="round"/>
+  <path d="M9 10 L15 21 L5 22Z" fill="url(#d)" opacity=".35"/>
+  <!-- Right ear -->
+  <path d="M40 6 L32 22 L45 23Z" fill="url(#f)" stroke="#b45309" stroke-width=".4" stroke-linejoin="round"/>
+  <path d="M39 10 L33 21 L43 22Z" fill="url(#d)" opacity=".35"/>
+  <!-- Head -->
+  <path d="M3 23 L16 22 L24 18 L32 22 L45 23 L41 35 L33 41 L24 44 L15 41 L7 35Z" fill="url(#f)" stroke="#b45309" stroke-width=".5" stroke-linejoin="round"/>
+  <!-- Forehead -->
+  <path d="M16 22 L24 18 L32 22 L28 26 L20 26Z" fill="#fff" opacity=".1"/>
+  <!-- Muzzle -->
+  <path d="M12 31 L24 27 L36 31 L32 39 L24 42 L16 39Z" fill="#fef3c7" opacity=".45"/>
+  <!-- Cheeks -->
+  <path d="M3 23 L12 31 L7 35Z" fill="#b45309" opacity=".12"/>
+  <path d="M45 23 L36 31 L41 35Z" fill="#b45309" opacity=".12"/>
+  <!-- Left eye -->
+  <circle cx="17" cy="28" r="3.5" fill="url(#e)"/>
+  <ellipse cx="17" cy="28" rx=".9" ry="2.5" fill="#0e7490" opacity=".85"/>
+  <circle cx="15.8" cy="26.8" r=".8" fill="#fff" opacity=".9"/>
+  <!-- Right eye -->
+  <circle cx="31" cy="28" r="3.5" fill="url(#e)"/>
+  <ellipse cx="31" cy="28" rx=".9" ry="2.5" fill="#0e7490" opacity=".85"/>
+  <circle cx="29.8" cy="26.8" r=".8" fill="#fff" opacity=".9"/>
+  <!-- Glasses -->
+  <circle cx="17" cy="28" r="5.5" fill="url(#l)" stroke="#334155" stroke-width="1.3"/>
+  <circle cx="31" cy="28" r="5.5" fill="url(#l)" stroke="#334155" stroke-width="1.3"/>
+  <path d="M22.5 27 Q24 25.5 25.5 27" stroke="#334155" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+  <line x1="11.5" y1="27" x2="7" y2="25" stroke="#334155" stroke-width="1" stroke-linecap="round"/>
+  <line x1="36.5" y1="27" x2="41" y2="25" stroke="#334155" stroke-width="1" stroke-linecap="round"/>
+  <!-- Lens glare -->
+  <circle cx="14.5" cy="26" r="1.2" fill="#fff" opacity=".4"/>
+  <circle cx="28.5" cy="26" r="1.2" fill="#fff" opacity=".4"/>
+  <!-- Nose -->
+  <path d="M22.5 34 Q24 32.5 25.5 34 Q24 35 22.5 34Z" fill="#78350f" opacity=".9"/>
+  <!-- Smile -->
+  <path d="M18 37 Q21 40.5 24 40.5 Q27 40.5 30 37" stroke="#78350f" stroke-width="1.1" stroke-linecap="round" fill="none" opacity=".65"/>
+  <!-- Tongue -->
+  <ellipse cx="24" cy="40" rx="2" ry="1.2" fill="#f87171" opacity=".5"/>
 </svg>

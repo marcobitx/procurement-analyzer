@@ -350,34 +350,154 @@
   }
 }
 
-/* ── Animated Logo — "A" Lettermark ──────────────────────── */
+/* ── Animated Logo — Winking Tech Fox 🦊😉 ──────────────── */
 
-/* Ambient glow behind logo */
-.al-ambient {
-  animation: alAmbient 5s ease-in-out infinite;
-}
-
-@keyframes alAmbient {
-
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-}
-
-/* Root container — subtle hover lift */
+/* Root — hover lift */
 .al-root {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .al-root:hover {
-  transform: scale(1.08);
+  transform: scale(1.1);
+}
+
+.al-root:active {
+  transform: scale(0.96);
+}
+
+/* Ambient glow — soft breathing */
+.dk-ambient {
+  animation: dkAmbient 5s ease-in-out infinite 1s;
+}
+
+@keyframes dkAmbient {
+
+  0%,
+  100% {
+    opacity: 0.06;
+  }
+
+  50% {
+    opacity: 0.12;
+  }
+}
+
+/* Right eye — gentle pulse glow (always open) */
+.dk-eye-pulse {
+  animation: dkEyePulse 3s ease-in-out infinite 1s;
+}
+
+@keyframes dkEyePulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* ── WINK ANIMATION ─────────────────────────────────────── */
+/* Left eye glow — fades during wink */
+.dk-wink-glow {
+  animation: dkWinkGlow 4s ease-in-out infinite 2s;
+}
+
+@keyframes dkWinkGlow {
+
+  0%,
+  40%,
+  50%,
+  100% {
+    opacity: 1;
+  }
+
+  44%,
+  46% {
+    opacity: 0.15;
+  }
+}
+
+/* Left eye open state (pupil, highlights) — hidden during wink */
+.dk-wink-open {
+  animation: dkWinkOpen 4s ease-in-out infinite 2s;
+}
+
+@keyframes dkWinkOpen {
+
+  0%,
+  40%,
+  50%,
+  100% {
+    opacity: 1;
+  }
+
+  43%,
+  47% {
+    opacity: 0;
+  }
+}
+
+/* Left eye wink arc — appears during wink */
+.dk-wink-shut {
+  animation: dkWinkShut 4s ease-in-out infinite 2s;
+}
+
+@keyframes dkWinkShut {
+
+  0%,
+  40%,
+  50%,
+  100% {
+    opacity: 0;
+  }
+
+  43%,
+  47% {
+    opacity: 1;
+  }
+}
+
+/* Circuit traces — subtle flicker */
+.dk-circuit {
+  animation: dkCircuit 4s ease-in-out infinite 1.5s;
+}
+
+@keyframes dkCircuit {
+
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+
+  50% {
+    opacity: 0.32;
+  }
+}
+
+/* ── GLASSES PUSH-UP ANIMATION 🤓 ───────────────────────── */
+/* Periodically lifts up slightly, like adjusting glasses */
+.dk-glasses {
+  animation: dkGlasses 6s ease-in-out infinite 3s;
+}
+
+@keyframes dkGlasses {
+
+  0%,
+  85%,
+  100% {
+    transform: translateY(0);
+  }
+
+  90% {
+    transform: translateY(-2px);
+  }
+
+  95% {
+    transform: translateY(-0.5px);
+  }
 }
 
 

@@ -7,7 +7,6 @@ import { FileText, ExternalLink, ShieldCheck, ScrollText, BrainCircuit } from 'l
 import { appStore, useStore } from '../lib/store';
 import ModelCarousel from './ModelCarousel';
 import Tooltip from './Tooltip';
-import AnimatedLogo from './AnimatedLogo';
 
 export default function UploadView() {
   const state = useStore(appStore);
@@ -16,10 +15,6 @@ export default function UploadView() {
     <div className="w-full animate-fade-in-up">
       {/* ── Compact Header — title + subtitle tightly grouped ──── */}
       <div className="text-center mb-6 pt-2 md:pt-4">
-        {/* ── Animated Logo Hero ────────────────────────────── */}
-        <div className="flex justify-center mb-5">
-          <AnimatedLogo size={64} animate={true} />
-        </div>
         {/* Brand + status — single compact row */}
         <div className="flex items-center justify-center gap-3 mb-4">
           <a

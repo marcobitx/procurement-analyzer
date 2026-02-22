@@ -74,13 +74,9 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
           <AnimatedLogo size={expanded ? 32 : 28} animate={expanded} />
         </div>
         <FadeText expanded={expanded}>
-          <span className="flex items-center gap-2">
-            <span className="text-[15px] font-bold text-surface-100 tracking-tight">
-              Analizė
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-surface-500 bg-surface-800/80 px-2 py-0.5 rounded-md border border-surface-700/40">
-              Pro
-            </span>
+          <span className="text-[17px] font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <span style={{ background: 'linear-gradient(135deg, #fcd34d, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>fox</span>
+            <span className="text-surface-100">Doc</span>
           </span>
         </FadeText>
       </div>
