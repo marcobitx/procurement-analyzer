@@ -3,7 +3,8 @@
 // File upload handled via FilesPanel; this shows the landing page
 // Related: FilesPanel.tsx, RightPanel.tsx, store.ts
 
-import { FileText, ExternalLink, ShieldCheck, ScrollText, BrainCircuit } from 'lucide-react';
+import { FileText, ExternalLink } from 'lucide-react';
+import { FoxBrain, FoxGuard, FoxScroll } from './FoxIcons';
 import { appStore, useStore } from '../lib/store';
 import ModelCarousel from './ModelCarousel';
 import Tooltip from './Tooltip';
@@ -71,7 +72,7 @@ export default function UploadView() {
       <div className="mt-8 md:mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fade-in" style={{ animationDelay: '300ms' }}>
         <Tooltip content="Dokumentai analizuojami AI modeliu" side="top">
           <div className="flex sm:flex-col items-center sm:items-center gap-2.5 sm:gap-2 px-4 py-3 sm:py-4 rounded-xl bg-surface-800/60 border border-surface-600/25 w-full">
-            <BrainCircuit className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400/80 flex-shrink-0" />
+            <FoxBrain className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400/80 flex-shrink-0" />
             <div className="flex sm:flex-col items-center sm:items-center gap-1.5 sm:gap-1 min-w-0">
               <span className="text-[12px] font-semibold text-surface-300 whitespace-nowrap">AI analizė</span>
               <span className="text-[11px] text-surface-500 font-medium truncate">{state.selectedModel?.name?.split(':').pop()?.trim() || 'Claude'}</span>
@@ -80,13 +81,13 @@ export default function UploadView() {
         </Tooltip>
         <Tooltip content="Duomenys perduodami šifruotu kanalu" side="top">
           <div className="flex sm:flex-col items-center sm:items-center gap-2.5 sm:gap-2 px-4 py-3 sm:py-4 rounded-xl bg-surface-800/60 border border-surface-600/25 w-full">
-            <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-brand-400/80 flex-shrink-0" />
+            <FoxGuard className="w-4 h-4 sm:w-5 sm:h-5 text-brand-400/80 flex-shrink-0" />
             <span className="text-[12px] font-semibold text-surface-300">Šifruota sesija</span>
           </div>
         </Tooltip>
         <Tooltip content="Visa analizės eiga matoma realiu laiku" side="top">
           <div className="flex sm:flex-col items-center sm:items-center gap-2.5 sm:gap-2 px-4 py-3 sm:py-4 rounded-xl bg-surface-800/60 border border-surface-600/25 w-full">
-            <ScrollText className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400/80 flex-shrink-0" />
+            <FoxScroll className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400/80 flex-shrink-0" />
             <span className="text-[12px] font-semibold text-surface-300">Pilnas žurnalas</span>
           </div>
         </Tooltip>

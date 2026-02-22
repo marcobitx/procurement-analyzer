@@ -9,12 +9,13 @@ import {
   Keyboard, ExternalLink, Mail, BookOpen, Zap,
 } from 'lucide-react';
 import { appStore, useStore } from '../lib/store';
+import { FoxHelp, FoxBrain, FoxScroll } from './FoxIcons';
 import Tooltip from './Tooltip';
 
 const WORKFLOW_STEPS = [
   { icon: Upload, title: 'Įkelkite dokumentus', desc: 'PDF, DOCX, XLSX arba ZIP failai — iki 20 failų, maks. 50MB.' },
-  { icon: Zap, title: 'AI analizė', desc: 'Sistema automatiškai ištraukia, agreguoja ir vertina duomenis.' },
-  { icon: FileText, title: 'Peržiūrėkite ataskaitą', desc: 'Struktūruota ataskaita su visais rastais duomenimis.' },
+  { icon: FoxBrain, title: 'AI analizė', desc: 'Sistema automatiškai ištraukia, agreguoja ir vertina duomenis.' },
+  { icon: FoxScroll, title: 'Peržiūrėkite ataskaitą', desc: 'Struktūruota ataskaita su visais rastais duomenimis.' },
   { icon: MessageSquare, title: 'Užduokite klausimus', desc: 'Pokalbio funkcija leidžia klausti apie dokumentų turinį.' },
   { icon: Download, title: 'Eksportuokite', desc: 'Atsisiųskite ataskaitą PDF arba DOCX formatu.' },
 ];
@@ -80,7 +81,7 @@ export default function HelpPanel() {
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-surface-950/95 backdrop-blur-lg border-b border-surface-800/40">
           <div className="flex items-center gap-2.5">
-            <BookOpen className="w-5 h-5 text-brand-400" />
+            <FoxHelp className="w-5 h-5 text-brand-400" />
             <h2 className="text-[16px] font-bold text-surface-100 tracking-tight">Pagalba</h2>
           </div>
           <Tooltip content="Uždaryti pagalbą" side="bottom">

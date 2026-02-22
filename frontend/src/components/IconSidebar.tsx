@@ -6,10 +6,10 @@
 import { clsx } from 'clsx';
 import { useState, useRef, useEffect } from 'react';
 import {
-  ScanSearch, Layers, Settings, HelpCircle,
-  PanelLeftClose, PanelLeftOpen, StickyNote,
+  PanelLeftClose, PanelLeftOpen,
   LogOut, Activity, Bookmark, ChevronUp,
 } from 'lucide-react';
+import { FoxScan, FoxPaw, FoxNote, FoxGear, FoxHelp } from './FoxIcons';
 import { appStore, useStore, resetForNewAnalysis, type AppView } from '../lib/store';
 import Tooltip from './Tooltip';
 import AnimatedLogo from './AnimatedLogo';
@@ -20,13 +20,13 @@ interface Props {
 }
 
 const MAIN_NAV: { view: AppView; icon: any; label: string }[] = [
-  { view: 'upload', icon: ScanSearch, label: 'Nauja analizė' },
-  { view: 'history', icon: Layers, label: 'Istorija' },
-  { view: 'notes', icon: StickyNote, label: 'Užrašai' },
+  { view: 'upload', icon: FoxScan, label: 'Nauja analizė' },
+  { view: 'history', icon: FoxPaw, label: 'Istorija' },
+  { view: 'notes', icon: FoxNote, label: 'Užrašai' },
 ];
 
 const BOTTOM_NAV: { view: AppView; icon: any; label: string }[] = [
-  { view: 'settings', icon: Settings, label: 'Nustatymai' },
+  { view: 'settings', icon: FoxGear, label: 'Nustatymai' },
 ];
 
 function getActiveNav(view: AppView): AppView {
@@ -170,7 +170,7 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
             onClick={() => appStore.setState({ helpPanelOpen: true })}
             className="relative flex items-center w-full py-2.5 px-3 rounded-lg transition-all duration-200 text-left text-surface-400 hover:text-surface-200 hover:bg-surface-800/40 group"
           >
-            <HelpCircle className="w-[18px] h-[18px] flex-shrink-0 text-surface-500 group-hover:text-surface-300 transition-colors duration-200" />
+            <FoxHelp className="w-[18px] h-[18px] flex-shrink-0 text-surface-500 group-hover:text-surface-300 transition-colors duration-200" />
             <FadeText expanded={expanded}>
               <span className="text-[13px] font-semibold tracking-tight">Pagalba</span>
             </FadeText>
@@ -217,7 +217,7 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
 /* ── Profile dropdown at the bottom of sidebar ────────────────────────────── */
 
 const PROFILE_MENU = [
-  { key: 'settings', icon: Settings, label: 'Nustatymai', view: 'settings' as AppView },
+  { key: 'settings', icon: FoxGear, label: 'Nustatymai', view: 'settings' as AppView },
   { key: 'activity', icon: Activity, label: 'Veikla', view: null },
   { key: 'saved', icon: Bookmark, label: 'Išsaugoti', view: null },
 ] as const;
