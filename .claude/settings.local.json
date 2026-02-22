@@ -20,7 +20,8 @@
       "WebFetch(domain:openrouter.ai)",
       "mcp__exa__get_code_context_exa",
       "WebSearch",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(python:*)"
     ]
   },
   "outputStyle": "Metodas → Kodėl → Sprendimas"

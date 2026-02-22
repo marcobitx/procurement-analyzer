@@ -319,9 +319,8 @@ def _flatten_nullable_anyof(node: dict) -> dict:
 def _flatten_nullable_anyof_openai(node: dict) -> dict:
     """Convert anyOf nullable pattern to OpenAI strict-mode format.
 
-    Pydantic generates: anyOf: [{type: "number"}, {type: "null"}]
-    OpenAI strict mode requires: {type: ["number", "null"]}
-    All fields stay in required, but nullable fields can return null.
+    Primitive types: anyOf: [{type: "number"}, {type: "null"}] -> {type: ["number", "null"]}
+    Object/array types: keep anyOf as-is (OpenAI supports anyOf for complex types).
     See: https://platform.openai.com/docs/guides/structured-outputs
     """
     if "anyOf" not in node or not isinstance(node["anyOf"], list):
@@ -333,13 +332,16 @@ def _flatten_nullable_anyof_openai(node: dict) -> dict:
     real_variant = next((v for v in variants if isinstance(v, dict) and v.get("type") != "null"), None)
     if null_variant is None or real_variant is None:
         return node
+    real_type = real_variant.get("type")
+    # Object/array types: keep anyOf format (OpenAI supports anyOf for nested schemas)
+    if real_type in ("object", "array") or real_type is None:
+        return node
+    # Primitive types: flatten to type: [T, "null"]
     merged = dict(real_variant)
     for k, v in node.items():
         if k != "anyOf":
             merged.setdefault(k, v)
-    # Convert type to nullable array: "number" -> ["number", "null"]
-    if "type" in merged:
-        merged["type"] = [merged["type"], "null"]
+    merged["type"] = [real_type, "null"]
     return merged
 
 
