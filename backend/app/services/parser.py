@@ -43,25 +43,27 @@ class ParsedDocument:
     is_scanned: bool = False  # True = empty text, needs vision/OCR extraction
 
 
-# ── Fast parsers (PyMuPDF for PDF, python-docx for DOCX) ─────────────────────
+# ── Fast parsers (pypdf for PDF, python-docx for DOCX) ───────────────────────
 
 
 def _parse_pdf_fast(file_path: Path) -> tuple[str, int]:
-    """Parse PDF using PyMuPDF4LLM — returns (markdown_text, page_count).
+    """Parse PDF using pypdf — returns (markdown_text, page_count).
 
-    ~100x faster than Docling for text-based PDFs.
-    Handles tables, headers, lists natively.
+    Pure Python, no native DLLs — avoids Windows Application Control blocks.
+    Fast for text-based PDFs.
     """
-    import pymupdf4llm
+    from pypdf import PdfReader
 
-    markdown_text = pymupdf4llm.to_markdown(str(file_path))
+    reader = PdfReader(str(file_path))
+    page_count = len(reader.pages)
 
-    # Get page count from PyMuPDF directly
-    import pymupdf
-    doc = pymupdf.open(str(file_path))
-    page_count = len(doc)
-    doc.close()
+    parts: list[str] = []
+    for i, page in enumerate(reader.pages):
+        text = page.extract_text() or ""
+        if text.strip():
+            parts.append(text.strip())
 
+    markdown_text = "\n\n".join(parts)
     return markdown_text, page_count
 
 
@@ -336,7 +338,7 @@ async def parse_document(file_path: Path, filename: str) -> ParsedDocument:
     """Parse a single document — uses fast parser when possible, Docling as fallback.
 
     Strategy:
-    - PDF → PyMuPDF4LLM (fast, ~0.1-0.5s)
+    - PDF → pypdf (fast, pure Python, ~0.1-0.5s)
     - DOCX → python-docx (fast, ~0.1s)
     - XLSX/PPTX/images → Docling (slow but necessary)
     - If fast parser fails → automatic Docling fallback
@@ -364,15 +366,15 @@ async def parse_document(file_path: Path, filename: str) -> ParsedDocument:
         loop = asyncio.get_running_loop()
 
         if file_ext in _FAST_PDF_EXTS:
-            # Fast path: PyMuPDF
+            # Fast path: pypdf
             try:
                 markdown_text, page_count = await loop.run_in_executor(
                     None, _parse_pdf_fast, file_path
                 )
-                parser_used = "pymupdf"
+                parser_used = "pypdf"
             except Exception as e:
                 logger.warning(
-                    "PyMuPDF failed for %s (%s), falling back to Docling", filename, e
+                    "pypdf failed for %s (%s), falling back to Docling", filename, e
                 )
                 markdown_text, page_count = await loop.run_in_executor(
                     None, _parse_with_docling, file_path, file_ext

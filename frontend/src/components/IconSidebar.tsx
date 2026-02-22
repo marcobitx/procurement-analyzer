@@ -6,12 +6,13 @@
 import { clsx } from 'clsx';
 import { useState, useRef, useEffect } from 'react';
 import {
-  ScanSearch, Layers, Settings, FlaskConical, HelpCircle,
+  ScanSearch, Layers, Settings, HelpCircle,
   PanelLeftClose, PanelLeftOpen, StickyNote,
   LogOut, Activity, Bookmark, ChevronUp,
 } from 'lucide-react';
 import { appStore, useStore, resetForNewAnalysis, type AppView } from '../lib/store';
 import Tooltip from './Tooltip';
+import AnimatedLogo from './AnimatedLogo';
 
 interface Props {
   currentView: AppView;
@@ -69,8 +70,8 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
     >
       {/* ── Logo ──────────────────────────────────────────────── */}
       <div className="flex items-center flex-shrink-0 h-14 px-4">
-        <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shadow-sm flex-shrink-0 transition-transform duration-300">
-          <FlaskConical className="w-4 h-4 text-white" />
+        <div className="flex-shrink-0 transition-transform duration-300">
+          <AnimatedLogo size={expanded ? 32 : 28} animate={expanded} />
         </div>
         <FadeText expanded={expanded}>
           <span className="flex items-center gap-2">
@@ -87,26 +88,26 @@ export default function IconSidebar({ currentView, onNavigate }: Props) {
       {/* ── Controls — toggle ────────────────────────────── */}
       <div className="flex items-center h-10 flex-shrink-0 mb-1 px-3 transition-all duration-300">
         <Tooltip content={expanded ? 'Suskleisti' : 'Išskleisti'} side="right">
-        <button
-          onClick={toggle}
-          aria-label={expanded ? 'Suskleisti' : 'Išskleisti'}
-          className="p-1.5 rounded-lg text-surface-500 hover:text-surface-200 hover:bg-surface-800/50 transition-all duration-200 flex-shrink-0"
-        >
-          <div className="relative w-[18px] h-[18px] overflow-hidden">
-            <PanelLeftClose
-              className={clsx(
-                'w-[18px] h-[18px] absolute inset-0 transition-all duration-300',
-                expanded ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90',
-              )}
-            />
-            <PanelLeftOpen
-              className={clsx(
-                'w-[18px] h-[18px] absolute inset-0 transition-all duration-300',
-                expanded ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0',
-              )}
-            />
-          </div>
-        </button>
+          <button
+            onClick={toggle}
+            aria-label={expanded ? 'Suskleisti' : 'Išskleisti'}
+            className="p-1.5 rounded-lg text-surface-500 hover:text-surface-200 hover:bg-surface-800/50 transition-all duration-200 flex-shrink-0"
+          >
+            <div className="relative w-[18px] h-[18px] overflow-hidden">
+              <PanelLeftClose
+                className={clsx(
+                  'w-[18px] h-[18px] absolute inset-0 transition-all duration-300',
+                  expanded ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90',
+                )}
+              />
+              <PanelLeftOpen
+                className={clsx(
+                  'w-[18px] h-[18px] absolute inset-0 transition-all duration-300',
+                  expanded ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0',
+                )}
+              />
+            </div>
+          </button>
         </Tooltip>
       </div>
 

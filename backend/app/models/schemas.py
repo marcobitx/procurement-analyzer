@@ -182,16 +182,52 @@ class TechnicalSpecification(BaseModel):
 
 
 class LotInfo(BaseModel):
-    lot_number: int
-    description: str
-    estimated_value: Optional[float] = None
+    lot_number: int = Field(..., description="Pirkimo dalies (loto) eilės numeris")
+    description: str = Field(..., description="Pirkimo dalies aprašymas")
+    estimated_value: Optional[float] = Field(None, description="Numatoma dalies vertė eurais")
     cpv_codes: list[str] = Field(default_factory=list, description="CPV kodai šiai daliai")
 
 
 class SourceDocument(BaseModel):
-    filename: str
-    type: DocumentType = DocumentType.OTHER
-    pages: Optional[int] = None
+    filename: str = Field(..., description="Šaltinio dokumento failo pavadinimas")
+    type: DocumentType = Field(DocumentType.OTHER, description="Dokumento tipas (technical_spec, contract, invitation, etc.)")
+    pages: Optional[int] = Field(None, description="Puslapių skaičius dokumente")
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def _coerce_document_type(cls, v: Any) -> str:
+        """Gracefully handle unknown document type values from LLM."""
+        if v is None:
+            return DocumentType.OTHER.value
+        v_str = str(v).strip().lower().replace(" ", "_").replace("-", "_")
+        valid = {e.value for e in DocumentType}
+        if v_str in valid:
+            return v_str
+        # Try common LLM variations
+        aliases = {
+            "tech_spec": "technical_spec",
+            "technical": "technical_spec",
+            "technical_specification": "technical_spec",
+            "spec": "technical_spec",
+            "specifications": "technical_spec",
+            "invite": "invitation",
+            "tender": "invitation",
+            "tender_invitation": "invitation",
+            "tender_notice": "invitation",
+            "notice": "invitation",
+            "qualify": "qualification",
+            "qualification_requirements": "qualification",
+            "eval": "evaluation",
+            "evaluation_criteria": "evaluation",
+            "scoring": "evaluation",
+            "appendix": "annex",
+            "attachment": "annex",
+            "supplement": "annex",
+            "agreement": "contract",
+            "draft_contract": "contract",
+            "contract_draft": "contract",
+        }
+        return aliases.get(v_str, "other")
 
     @model_validator(mode="before")
     @classmethod
@@ -203,7 +239,7 @@ class SourceDocument(BaseModel):
 
 
 class ConfidenceNote(BaseModel):
-    note: str
+    note: str = Field(..., description="Pastaba apie duomenų patikimumą arba trūkstamą informaciją")
     severity: str = Field("info", description="info | warning | conflict")
 
 
@@ -252,7 +288,7 @@ class ExtractionResult(BaseModel):
     )
 
     # ── Organizacija ir pirkimo būdas ──
-    procuring_organization: Optional[ProcuringOrganization] = None
+    procuring_organization: Optional[ProcuringOrganization] = Field(None, description="Perkančioji organizacija — pavadinimas, kodas, kontaktai")
     procurement_type: Optional[str] = Field(
         None, description="Pirkimo būdas (atviras konkursas, ribotas konkursas, derybų procedūra, etc.)"
     )
@@ -261,11 +297,11 @@ class ExtractionResult(BaseModel):
     )
 
     # ── Vertė ir finansai ──
-    estimated_value: Optional[EstimatedValue] = None
-    financial_terms: Optional[FinancialTerms] = None
+    estimated_value: Optional[EstimatedValue] = Field(None, description="Numatoma pirkimo vertė (suma, valiuta, PVM)")
+    financial_terms: Optional[FinancialTerms] = Field(None, description="Finansinės sąlygos — mokėjimai, garantijos, baudos")
 
     # ── Terminai ──
-    deadlines: Optional[Deadlines] = None
+    deadlines: Optional[Deadlines] = Field(None, description="Visi svarbūs terminai — pateikimo, klausimų, vykdymo")
 
     # ── Techninė specifikacija ir reikalavimai ──
     key_requirements: list[str] = Field(
@@ -278,16 +314,16 @@ class ExtractionResult(BaseModel):
     )
 
     # ── Kvalifikacija ir vertinimas ──
-    qualification_requirements: Optional[QualificationRequirements] = None
-    evaluation_criteria: list[EvaluationCriterion] = Field(default_factory=list)
+    qualification_requirements: Optional[QualificationRequirements] = Field(None, description="Kvalifikacijos reikalavimai tiekėjams")
+    evaluation_criteria: list[EvaluationCriterion] = Field(default_factory=list, description="Pasiūlymų vertinimo kriterijai su svoriais")
 
     # ── Pasiūlymo pateikimas ──
-    submission_requirements: Optional[SubmissionRequirements] = None
+    submission_requirements: Optional[SubmissionRequirements] = Field(None, description="Pasiūlymo pateikimo reikalavimai — būdas, kalba, formatas")
 
     # ── Sutarties sąlygos ──
-    restrictions_and_prohibitions: list[str] = Field(default_factory=list)
-    lot_structure: Optional[list[LotInfo]] = None
-    special_conditions: list[str] = Field(default_factory=list)
+    restrictions_and_prohibitions: list[str] = Field(default_factory=list, description="Apribojimai ir draudimai tiekėjams")
+    lot_structure: Optional[list[LotInfo]] = Field(None, description="Pirkimo dalių (lotų) struktūra, jei pirkimas suskirstytas dalimis")
+    special_conditions: list[str] = Field(default_factory=list, description="Specialiosios sutarties sąlygos")
 
     # ── Rizikos ir rekomendacijos ──
     risk_factors: list[RiskFactor] = Field(
@@ -301,8 +337,8 @@ class ExtractionResult(BaseModel):
     )
 
     # ── Šaltiniai ──
-    source_documents: list[SourceDocument] = Field(default_factory=list)
-    confidence_notes: list[str] = Field(default_factory=list)
+    source_documents: list[SourceDocument] = Field(default_factory=list, description="Analizuotų šaltinio dokumentų sąrašas")
+    confidence_notes: list[str] = Field(default_factory=list, description="Pastabos apie duomenų patikimumą ir trūkstamą informaciją")
     source_references: list[SourceReference] = Field(
         default_factory=list,
         description="Šaltinių nuorodos — kiekvienam ištrauktam duomeniui tiksli citata ir vieta dokumente",
@@ -311,30 +347,63 @@ class ExtractionResult(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _coerce_list_fields(cls, values: Any) -> Any:
-        """Coerce list fields that the LLM may return as string or None."""
-        if isinstance(values, dict):
-            list_fields = [
-                "confidence_notes",
-                "key_requirements",
-                "restrictions_and_prohibitions",
-                "special_conditions",
-                "cpv_codes",
-                "nuts_codes",
-                "source_references",
-                "technical_specifications",
-                "evaluation_criteria",
-                "risk_factors",
-                "source_documents",
-            ]
-            for field in list_fields:
-                v = values.get(field)
-                if v is None:
-                    values[field] = []
-                elif isinstance(v, str):
-                    values[field] = [v] if v.strip() else []
-                elif isinstance(v, dict):
-                    # LLM sometimes returns a single object instead of a list
-                    values[field] = [v]
+        """Coerce list fields that the LLM may return as string, None, or wrong types."""
+        if not isinstance(values, dict):
+            return values
+
+        # All list fields on this model
+        list_fields = [
+            "confidence_notes",
+            "key_requirements",
+            "restrictions_and_prohibitions",
+            "special_conditions",
+            "cpv_codes",
+            "nuts_codes",
+            "source_references",
+            "technical_specifications",
+            "evaluation_criteria",
+            "risk_factors",
+            "source_documents",
+        ]
+        # Fields that expect list[str] — dict items must be flattened to strings
+        str_list_fields = {
+            "confidence_notes",
+            "key_requirements",
+            "restrictions_and_prohibitions",
+            "special_conditions",
+            "cpv_codes",
+            "nuts_codes",
+        }
+
+        for field in list_fields:
+            v = values.get(field)
+            if v is None:
+                values[field] = []
+            elif isinstance(v, str):
+                values[field] = [v] if v.strip() else []
+            elif isinstance(v, dict):
+                # LLM sometimes returns a single object instead of a list
+                values[field] = [v]
+
+            # For str-list fields, coerce any non-string items to strings
+            if field in str_list_fields and isinstance(values.get(field), list):
+                coerced = []
+                for item in values[field]:
+                    if isinstance(item, str):
+                        coerced.append(item)
+                    elif isinstance(item, dict):
+                        # Flatten dict to readable string
+                        parts = [
+                            f"{k}: {v}" for k, v in item.items()
+                            if v is not None and v != "" and v != []
+                        ]
+                        coerced.append("; ".join(parts) if parts else json.dumps(item, ensure_ascii=False))
+                    elif isinstance(item, (int, float, bool)):
+                        coerced.append(str(item))
+                    else:
+                        coerced.append(str(item))
+                values[field] = coerced
+
         return values
 
 

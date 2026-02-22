@@ -4,8 +4,9 @@
 // Related: UploadPanel.tsx, store.ts, FileTypeLogos.tsx
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { X, FolderOpen, Trash2, Plus, Eye, EyeOff, FileText, HardDrive, Maximize2, Minimize2 } from 'lucide-react';
-import { appStore, useStore } from '../lib/store';
+import { X, FolderOpen, Trash2, Plus, Eye, EyeOff, FileText, HardDrive, Maximize2, Minimize2, BookOpen, Unplug } from 'lucide-react';
+import { appStore, useStore, type ParsedDocInfo } from '../lib/store';
+import { getDocumentContent } from '../lib/api';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { FileTypeLogo, FILE_TYPE_INFO } from './FileTypeLogos';
 import ScrollText from './ScrollText';
@@ -25,9 +26,9 @@ function getExtension(name: string): string {
   return name.split('.').pop()?.toLowerCase() || '';
 }
 
-function getFormatSummary(files: File[]): { ext: string; count: number; color: string }[] {
+function getFormatSummary(items: { name: string }[]): { ext: string; count: number; color: string }[] {
   const map = new Map<string, number>();
-  for (const f of files) {
+  for (const f of items) {
     const ext = getExtension(f.name);
     map.set(ext, (map.get(ext) || 0) + 1);
   }
@@ -40,6 +41,11 @@ function getFormatSummary(files: File[]): { ext: string; count: number; color: s
     }));
 }
 
+function formatSizeKb(kb: number) {
+  if (kb < 1024) return `${kb} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
 export default function FilesPanel() {
   const state = useStore(appStore);
   const [visible, setVisible] = useState(false);
@@ -47,10 +53,12 @@ export default function FilesPanel() {
   const [dragOver, setDragOver] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [docPreview, setDocPreview] = useState<{ filename: string; content: string; pages: number; docType: string } | null>(null);
+  const [docPreviewLoading, setDocPreviewLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const trapRef = useFocusTrap<HTMLDivElement>();
 
-  const hasPreview = previewFile !== null && previewUrl !== null;
+  const hasPreview = (previewFile !== null && previewUrl !== null) || docPreview !== null;
 
   useEffect(() => {
     if (state.filesPanelOpen) {
@@ -74,6 +82,8 @@ export default function FilesPanel() {
 
   const closePreview = useCallback(() => {
     setPreviewFile(null);
+    setDocPreview(null);
+    setDocPreviewLoading(false);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -84,7 +94,7 @@ export default function FilesPanel() {
     if (!state.filesPanelOpen) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        if (previewFile) {
+        if (previewFile || docPreview) {
           closePreview();
         } else {
           handleClose();
@@ -124,12 +134,40 @@ export default function FilesPanel() {
     const url = URL.createObjectURL(file);
     setPreviewFile(file);
     setPreviewUrl(url);
+    setDocPreview(null);
   }, [previewUrl]);
+
+  const openDocPreview = useCallback(async (filename: string) => {
+    const analysisId = appStore.getState().currentAnalysisId;
+    if (!analysisId) return;
+    if (docPreview?.filename === filename) return;
+    setDocPreviewLoading(true);
+    setPreviewFile(null);
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }
+    try {
+      const data = await getDocumentContent(analysisId, filename);
+      setDocPreview({ filename: data.filename, content: data.content, pages: data.page_count, docType: data.doc_type });
+    } catch {
+      setDocPreview({ filename, content: 'Nepavyko įkelti dokumento turinio.', pages: 0, docType: '' });
+    } finally {
+      setDocPreviewLoading(false);
+    }
+  }, [docPreview?.filename, previewUrl]);
 
   if (!visible) return null;
 
-  const totalSize = state.files.reduce((s, f) => s + f.size, 0);
-  const formats = getFormatSummary(state.files);
+  // Analysis mode: show extracted/parsed docs instead of original uploads (e.g. ZIP → individual files)
+  const isAnalysisMode = state.parsedDocs.length > 0 && state.view !== 'upload';
+  const displayItems = isAnalysisMode
+    ? state.parsedDocs.map((d) => ({ name: d.filename, size: d.size_kb * 1024, ext: d.format, pages: d.pages, sizeKb: d.size_kb }))
+    : state.files.map((f) => ({ name: f.name, size: f.size, ext: getExtension(f.name), pages: 0, sizeKb: 0 }));
+  const totalSize = isAnalysisMode
+    ? state.parsedDocs.reduce((s, d) => s + d.size_kb, 0) * 1024
+    : state.files.reduce((s, f) => s + f.size, 0);
+  const totalPages = isAnalysisMode
+    ? state.parsedDocs.reduce((s, d) => s + d.pages, 0)
+    : 0;
+  const formats = getFormatSummary(displayItems);
   const previewExt = previewFile ? getExtension(previewFile.name) : '';
 
   return (
@@ -158,7 +196,7 @@ export default function FilesPanel() {
         aria-label="Failų peržiūra"
       >
         {/* ── LEFT: Preview Viewer ── */}
-        {hasPreview && (
+        {(hasPreview || docPreviewLoading) && (
           <div
             className={clsx(
               "flex flex-col rounded-[10px] overflow-hidden shadow-2xl",
@@ -170,9 +208,23 @@ export default function FilesPanel() {
             {/* Preview header */}
             <div className="h-12 flex items-center justify-between px-4 border-b border-surface-700/50 bg-surface-950/80 backdrop-blur-md flex-shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <FileTypeLogo extension={previewExt} size={18} />
-                <ScrollText className="text-[13px] font-semibold text-surface-200">{previewFile!.name}</ScrollText>
-                <span className="text-[10px] font-mono text-surface-500 flex-shrink-0">{formatSize(previewFile!.size)}</span>
+                {docPreview ? (
+                  <>
+                    <FileTypeLogo extension={docPreview.docType || getExtension(docPreview.filename)} size={18} />
+                    <ScrollText className="text-[13px] font-semibold text-surface-200">{docPreview.filename}</ScrollText>
+                    {docPreview.pages > 0 && (
+                      <span className="text-[10px] font-mono text-surface-500 flex-shrink-0">{docPreview.pages} psl.</span>
+                    )}
+                  </>
+                ) : previewFile ? (
+                  <>
+                    <FileTypeLogo extension={previewExt} size={18} />
+                    <ScrollText className="text-[13px] font-semibold text-surface-200">{previewFile.name}</ScrollText>
+                    <span className="text-[10px] font-mono text-surface-500 flex-shrink-0">{formatSize(previewFile.size)}</span>
+                  </>
+                ) : docPreviewLoading ? (
+                  <span className="text-[13px] text-surface-400">Kraunama...</span>
+                ) : null}
               </div>
               <Tooltip content="Uždaryti peržiūrą" side="bottom">
                 <button
@@ -186,7 +238,18 @@ export default function FilesPanel() {
 
             {/* Preview content — fills all available space */}
             <div className="flex-1 overflow-auto bg-surface-800/40 p-3">
-              {['png', 'jpg', 'jpeg'].includes(previewExt) ? (
+              {docPreviewLoading ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-3">
+                  <div className="w-6 h-6 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-[13px] text-surface-500">Kraunamas turinys...</p>
+                </div>
+              ) : docPreview ? (
+                <div className="h-full min-h-[400px] rounded-lg border border-surface-700/40 bg-surface-900/60 p-5 overflow-auto">
+                  <pre className="text-[13px] text-surface-300 leading-relaxed whitespace-pre-wrap font-[inherit] break-words">
+                    {docPreview.content || 'Turinys neprieinamas.'}
+                  </pre>
+                </div>
+              ) : ['png', 'jpg', 'jpeg'].includes(previewExt) ? (
                 <div className="flex items-center justify-center h-full min-h-[400px]">
                   <img
                     src={previewUrl!}
@@ -224,9 +287,9 @@ export default function FilesPanel() {
             <div className="flex items-center gap-2.5">
               <FolderOpen className="w-4 h-4 text-brand-400" />
               <h2 className="text-[14px] font-bold text-white uppercase tracking-wider">Failai</h2>
-              {state.files.length > 0 && (
+              {displayItems.length > 0 && (
                 <span className="text-[11px] font-mono text-surface-500 ml-1">
-                  ({state.files.length})
+                  ({displayItems.length})
                 </span>
               )}
             </div>
@@ -241,14 +304,14 @@ export default function FilesPanel() {
           </div>
 
           {/* Stats bar */}
-          {state.files.length > 0 && (
+          {displayItems.length > 0 && (
             <div className="px-5 py-3 border-b border-surface-700/40 bg-surface-800/40 flex-shrink-0">
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
                     <FileText className="w-3 h-3 text-surface-500" />
                     <span className="text-[11px] font-bold text-surface-300">
-                      {state.files.length} {state.files.length === 1 ? 'failas' : state.files.length < 10 ? 'failai' : 'failų'}
+                      {displayItems.length} {displayItems.length === 1 ? 'failas' : displayItems.length < 10 ? 'failai' : 'failų'}
                     </span>
                   </div>
                   <div className="w-px h-3 bg-surface-700/50" />
@@ -256,18 +319,29 @@ export default function FilesPanel() {
                     <HardDrive className="w-3 h-3 text-surface-500" />
                     <span className="text-[11px] font-mono text-surface-400">{formatSize(totalSize)}</span>
                   </div>
+                  {totalPages > 0 && (
+                    <>
+                      <div className="w-px h-3 bg-surface-700/50" />
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen className="w-3 h-3 text-surface-500" />
+                        <span className="text-[11px] font-mono text-surface-400">{totalPages} psl.</span>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <Tooltip content="Pašalinti visus failus" side="top">
-                  <button
-                    onClick={() => {
-                      appStore.setState({ files: [] });
-                      closePreview();
-                    }}
-                    className="text-[10px] font-bold text-surface-600 hover:text-red-400 transition-colors uppercase tracking-wider"
-                  >
-                    Išvalyti
-                  </button>
-                </Tooltip>
+                {!isAnalysisMode && (
+                  <Tooltip content="Pašalinti visus failus" side="top">
+                    <button
+                      onClick={() => {
+                        appStore.setState({ files: [] });
+                        closePreview();
+                      }}
+                      className="text-[10px] font-bold text-surface-600 hover:text-red-400 transition-colors uppercase tracking-wider"
+                    >
+                      Išvalyti
+                    </button>
+                  </Tooltip>
+                )}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {formats.map(({ ext, count, color }) => (
@@ -290,7 +364,7 @@ export default function FilesPanel() {
 
           {/* File list */}
           <div className="flex-1 overflow-y-auto scrollbar-thin">
-            {state.files.length === 0 ? (
+            {displayItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-16 gap-4 px-8">
                 <div className="w-16 h-16 rounded-2xl bg-surface-800/60 border border-surface-700/50 flex items-center justify-center">
                   <FolderOpen className="w-7 h-7 text-surface-600" />
@@ -302,28 +376,38 @@ export default function FilesPanel() {
               </div>
             ) : (
               <div className="p-3 space-y-1">
-                {state.files.map((f) => {
-                  const ext = getExtension(f.name);
-                  const isPreviewable = ['pdf', 'png', 'jpg', 'jpeg'].includes(ext);
-                  const isActive = previewFile?.name === f.name;
+                {displayItems.map((item) => {
+                  const ext = item.ext;
+                  const isUploadFile = !isAnalysisMode;
+                  const originalFile = isUploadFile ? state.files.find((f) => f.name === item.name) : null;
+                  const isPreviewable = isUploadFile ? ['pdf', 'png', 'jpg', 'jpeg'].includes(ext) : true;
+                  const isActive = isAnalysisMode
+                    ? docPreview?.filename === item.name
+                    : previewFile?.name === item.name;
 
                   return (
                     <div
-                      key={f.name}
+                      key={item.name}
                       className={clsx(
                         "group flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer",
                         isActive
                           ? "bg-brand-500/5 border-brand-500/20"
                           : "bg-surface-800/50 border-surface-600/30 hover:border-surface-500/50 hover:bg-surface-700/50"
                       )}
-                      onClick={() => isPreviewable && openPreview(f)}
+                      onClick={() => {
+                        if (isAnalysisMode) {
+                          openDocPreview(item.name);
+                        } else if (originalFile && ['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
+                          openPreview(originalFile);
+                        }
+                      }}
                     >
                       <FileTypeLogo extension={ext} size={20} />
 
                       <div className="flex-1 min-w-0">
-                        <ScrollText className="text-[12px] font-semibold text-surface-200">{f.name}</ScrollText>
+                        <ScrollText className="text-[12px] font-semibold text-surface-200">{item.name}</ScrollText>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-mono text-surface-500">{formatSize(f.size)}</span>
+                          <span className="text-[10px] font-mono text-surface-500">{formatSize(item.size)}</span>
                           <span
                             className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0 rounded"
                             style={{
@@ -333,15 +417,18 @@ export default function FilesPanel() {
                           >
                             {ext}
                           </span>
+                          {item.pages > 0 && (
+                            <span className="text-[10px] font-mono text-surface-600">{item.pages} psl.</span>
+                          )}
                         </div>
                       </div>
 
                       {/* Actions */}
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        {isPreviewable && (
-                          <Tooltip content="Peržiūrėti" side="top">
+                        {isAnalysisMode ? (
+                          <Tooltip content="Peržiūrėti turinį" side="top">
                             <button
-                              onClick={(e) => { e.stopPropagation(); openPreview(f); }}
+                              onClick={(e) => { e.stopPropagation(); openDocPreview(item.name); }}
                               className={clsx(
                                 "p-1.5 rounded-lg transition-all",
                                 isActive
@@ -352,15 +439,33 @@ export default function FilesPanel() {
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                           </Tooltip>
+                        ) : (
+                          <>
+                            {['pdf', 'png', 'jpg', 'jpeg'].includes(ext) && (
+                              <Tooltip content="Peržiūrėti" side="top">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); originalFile && openPreview(originalFile); }}
+                                  className={clsx(
+                                    "p-1.5 rounded-lg transition-all",
+                                    isActive
+                                      ? "bg-brand-500/10 text-brand-400"
+                                      : "opacity-0 group-hover:opacity-100 hover:bg-brand-500/10 text-surface-500 hover:text-brand-400"
+                                  )}
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              </Tooltip>
+                            )}
+                            <Tooltip content="Pašalinti" side="top">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); removeFile(item.name); }}
+                                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-surface-500 hover:text-red-400 transition-all"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                          </>
                         )}
-                        <Tooltip content="Pašalinti" side="top">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); removeFile(f.name); }}
-                            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-surface-500 hover:text-red-400 transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </Tooltip>
                       </div>
                     </div>
                   );
@@ -369,34 +474,36 @@ export default function FilesPanel() {
             )}
           </div>
 
-          {/* Add files */}
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            className="border-t border-surface-700/50 bg-surface-800/50 flex-shrink-0"
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept={ACCEPTED}
-              multiple
-              onChange={(e) => e.target.files && addFiles(e.target.files)}
-              className="hidden"
-            />
-            <button
-              onClick={() => inputRef.current?.click()}
-              className={clsx(
-                "w-full flex items-center justify-center gap-2 px-5 py-3.5 text-[12px] font-semibold transition-all duration-200",
-                dragOver
-                  ? "text-brand-400 bg-brand-500/5"
-                  : "text-surface-400 hover:text-surface-200 hover:bg-white/[0.03]"
-              )}
+          {/* Add files — only in upload mode */}
+          {!isAnalysisMode && (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              className="border-t border-surface-700/50 bg-surface-800/50 flex-shrink-0"
             >
-              <Plus className="w-3.5 h-3.5" />
-              {dragOver ? 'Paleiskite failus čia' : 'Pridėti failų'}
-            </button>
-          </div>
+              <input
+                ref={inputRef}
+                type="file"
+                accept={ACCEPTED}
+                multiple
+                onChange={(e) => e.target.files && addFiles(e.target.files)}
+                className="hidden"
+              />
+              <button
+                onClick={() => inputRef.current?.click()}
+                className={clsx(
+                  "w-full flex items-center justify-center gap-2 px-5 py-3.5 text-[12px] font-semibold transition-all duration-200",
+                  dragOver
+                    ? "text-brand-400 bg-brand-500/5"
+                    : "text-surface-400 hover:text-surface-200 hover:bg-white/[0.03]"
+                )}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {dragOver ? 'Paleiskite failus čia' : 'Pridėti failų'}
+              </button>
+            </div>
+          )}
 
           {/* Footer */}
           <div className="px-5 py-2.5 border-t border-surface-700/40 bg-surface-950/50 flex-shrink-0">

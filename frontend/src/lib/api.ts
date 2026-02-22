@@ -100,6 +100,12 @@ export async function exportAnalysis(id: string, format: 'pdf' | 'docx'): Promis
   return res.blob();
 }
 
+export async function getDocumentContent(analysisId: string, filename: string): Promise<{ filename: string; content: string; page_count: number; doc_type: string }> {
+  const res = await fetch(`${BASE}/analyze/${analysisId}/documents/${encodeURIComponent(filename)}/content`);
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  return res.json();
+}
+
 // ── SSE stream ───────────────────────────────────────────────────────────────
 
 export function streamProgress(id: string, onEvent: (e: SSEEvent) => void, onDone: () => void): () => void {

@@ -186,34 +186,308 @@ def _extract_json(raw: str) -> str:
     return result
 
 
-def _clean_json_schema(schema: dict) -> dict:
+def _detect_provider(model_id: str) -> str:
+    """Detect provider family from OpenRouter model ID."""
+    prefixes = {
+        "anthropic/": "anthropic",
+        "google/": "google",
+        "openai/": "openai",
+        "meta-llama/": "meta",
+        "mistralai/": "mistral",
+        "deepseek/": "deepseek",
+        "moonshotai/": "moonshot",
+        "qwen/": "qwen",
+        "cohere/": "cohere",
+        "ai21/": "ai21",
+        "perplexity/": "perplexity",
+        "microsoft/": "microsoft",
+        "nvidia/": "nvidia",
+        "x-ai/": "xai",
+        "z-ai/": "zai",
+        "amazon/": "amazon",
+    }
+    for prefix, provider in prefixes.items():
+        if model_id.startswith(prefix):
+            return provider
+    return "generic"
+
+
+def _resolve_refs(schema: dict) -> dict:
+    """Inline all $defs/$ref references so the schema is self-contained.
+
+    Gemini and some other providers don't support $ref/$defs in JSON schema.
+    This replaces every {"$ref": "#/$defs/TypeName"} with the actual definition.
+    Handles circular references by tracking the resolution stack.
     """
-    Recursively clean a JSON schema for OpenRouter / Anthropic strict mode.
-    - Removes 'title' and 'description' keys (descriptions bloat the grammar;
-      field semantics are conveyed via the system prompt instead)
-    - Removes 'default' keys (unsupported by strict mode)
-    - Adds 'additionalProperties': false to every object type
-      (required by Claude for structured outputs)
+    defs = schema.pop("$defs", None) or schema.pop("definitions", None) or {}
+    if not defs:
+        return schema
+
+    def _inline(node: dict, resolving: frozenset[str] = frozenset()) -> dict:
+        if "$ref" in node:
+            ref_path = node["$ref"]  # e.g. "#/$defs/LotInfo"
+            type_name = ref_path.rsplit("/", 1)[-1]
+            if type_name in resolving:
+                # Circular reference — break the cycle with a generic object
+                logger.debug("Circular $ref detected for %s, using generic object", type_name)
+                fallback: dict = {"type": "object"}
+                for k, v in node.items():
+                    if k != "$ref":
+                        fallback[k] = v
+                return fallback
+            if type_name in defs:
+                resolved = _inline(dict(defs[type_name]), resolving | {type_name})
+                for k, v in node.items():
+                    if k != "$ref":
+                        resolved.setdefault(k, v)
+                return resolved
+            return node
+
+        # Flatten single-element allOf (Pydantic sometimes wraps inherited models)
+        if "allOf" in node and isinstance(node["allOf"], list) and len(node["allOf"]) == 1:
+            merged = dict(node["allOf"][0])
+            for k, v in node.items():
+                if k != "allOf":
+                    merged.setdefault(k, v)
+            return _inline(merged, resolving)
+
+        result: dict = {}
+        for key, value in node.items():
+            if isinstance(value, dict):
+                result[key] = _inline(value, resolving)
+            elif isinstance(value, list):
+                result[key] = [
+                    _inline(item, resolving) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                result[key] = value
+        return result
+
+    return _inline(schema)
+
+
+def _clean_schema_for_anthropic(schema: dict) -> dict:
+    """Clean schema for Anthropic Claude models.
+
+    - Removes title, description, default
+    - Adds additionalProperties: false on all objects
     """
     cleaned: dict = {}
     for key, value in schema.items():
         if key in ("title", "description", "default"):
             continue
         if isinstance(value, dict):
-            cleaned[key] = _clean_json_schema(value)
+            cleaned[key] = _clean_schema_for_anthropic(value)
         elif isinstance(value, list):
             cleaned[key] = [
-                _clean_json_schema(item) if isinstance(item, dict) else item
+                _clean_schema_for_anthropic(item) if isinstance(item, dict) else item
                 for item in value
             ]
         else:
             cleaned[key] = value
 
-    # Anthropic requires additionalProperties: false on all object types
     if cleaned.get("type") == "object" and "additionalProperties" not in cleaned:
         cleaned["additionalProperties"] = False
 
     return cleaned
+
+
+def _flatten_nullable_anyof(node: dict) -> dict:
+    """Convert anyOf nullable pattern to simpler nullable form.
+
+    Pydantic generates: anyOf: [{...real_type}, {type: null}]
+    Many providers prefer: {...real_type} (with the field being Optional in required).
+    """
+    if "anyOf" not in node or not isinstance(node["anyOf"], list):
+        return node
+    variants = node["anyOf"]
+    if len(variants) != 2:
+        return node
+    null_variant = next((v for v in variants if isinstance(v, dict) and v.get("type") == "null"), None)
+    real_variant = next((v for v in variants if isinstance(v, dict) and v.get("type") != "null"), None)
+    if null_variant is None or real_variant is None:
+        return node
+    # Merge: take real variant + any sibling keys from parent (e.g. description)
+    merged = dict(real_variant)
+    for k, v in node.items():
+        if k != "anyOf":
+            merged.setdefault(k, v)
+    return merged
+
+
+def _clean_schema_for_google(schema: dict) -> dict:
+    """Clean schema for Google Gemini models.
+
+    - Removes title, default
+    - KEEPS description (Gemini requires it on every field)
+    - Adds fallback description where missing (including nested items)
+    - Inlines $defs (Gemini doesn't support $ref)
+    - Flattens anyOf nullable patterns (Gemini handles them poorly)
+    - Ensures required array on objects
+    - Adds additionalProperties: false
+    """
+    schema = _resolve_refs(dict(schema))
+
+    def _clean(node: dict, field_name: str = "") -> dict:
+        # Flatten nullable anyOf before processing
+        node = _flatten_nullable_anyof(node)
+
+        cleaned: dict = {}
+        for key, value in node.items():
+            if key in ("title", "default"):
+                continue
+            if key == "properties" and isinstance(value, dict):
+                cleaned_props: dict = {}
+                for prop_name, prop_val in value.items():
+                    if isinstance(prop_val, dict):
+                        cleaned_prop = _clean(prop_val, field_name=prop_name)
+                        if "description" not in cleaned_prop:
+                            cleaned_prop["description"] = prop_name.replace("_", " ")
+                        cleaned_props[prop_name] = cleaned_prop
+                    else:
+                        cleaned_props[prop_name] = prop_val
+                cleaned[key] = cleaned_props
+            elif isinstance(value, dict):
+                cleaned[key] = _clean(value, field_name=field_name)
+            elif isinstance(value, list):
+                cleaned[key] = [
+                    _clean(item, field_name=field_name) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                cleaned[key] = value
+
+        if cleaned.get("type") == "object":
+            if "additionalProperties" not in cleaned:
+                cleaned["additionalProperties"] = False
+            # Gemini needs required array — if properties exist but required is missing, add all
+            if "properties" in cleaned and "required" not in cleaned:
+                cleaned["required"] = list(cleaned["properties"].keys())
+
+        # Ensure array items have descriptions
+        if cleaned.get("type") == "array" and "items" in cleaned:
+            items = cleaned["items"]
+            if isinstance(items, dict):
+                if "description" not in items:
+                    items["description"] = f"{field_name} item" if field_name else "array item"
+                # Recursively ensure nested object items also have required
+                if items.get("type") == "object" and "properties" in items and "required" not in items:
+                    items["required"] = list(items["properties"].keys())
+
+        # Top-level description fallback
+        if field_name and "description" not in cleaned and cleaned.get("type") not in (None,):
+            cleaned["description"] = field_name.replace("_", " ")
+
+        return cleaned
+
+    return _clean(schema)
+
+
+def _clean_schema_for_openai(schema: dict) -> dict:
+    """Clean schema for OpenAI GPT models.
+
+    - Removes title, default
+    - KEEPS description
+    - Inlines $defs (OpenAI supports them but inline is safer for OpenRouter proxy)
+    - Flattens single-item allOf
+    - Converts anyOf nullable patterns to simpler form
+    - Adds additionalProperties: false
+    - Ensures required array on objects
+    """
+    schema = _resolve_refs(dict(schema))
+
+    def _clean(node: dict) -> dict:
+        # Flatten nullable anyOf
+        node = _flatten_nullable_anyof(node)
+
+        cleaned: dict = {}
+        for key, value in node.items():
+            if key in ("title", "default"):
+                continue
+            if isinstance(value, dict):
+                cleaned[key] = _clean(value)
+            elif isinstance(value, list):
+                cleaned[key] = [
+                    _clean(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                cleaned[key] = value
+
+        if cleaned.get("type") == "object":
+            if "additionalProperties" not in cleaned:
+                cleaned["additionalProperties"] = False
+            if "properties" in cleaned and "required" not in cleaned:
+                cleaned["required"] = list(cleaned["properties"].keys())
+
+        return cleaned
+
+    return _clean(schema)
+
+
+def _clean_schema_generic(schema: dict) -> dict:
+    """Generic schema cleaning for unknown providers.
+
+    - Removes title, default
+    - KEEPS description
+    - Inlines $defs (safer for unknown providers)
+    - Flattens anyOf nullable and single-item allOf
+    - Adds additionalProperties: false
+    - Ensures required array on objects
+    """
+    schema = _resolve_refs(dict(schema))
+
+    def _clean(node: dict, field_name: str = "") -> dict:
+        node = _flatten_nullable_anyof(node)
+
+        cleaned: dict = {}
+        for key, value in node.items():
+            if key in ("title", "default"):
+                continue
+            if key == "properties" and isinstance(value, dict):
+                cleaned_props: dict = {}
+                for prop_name, prop_val in value.items():
+                    if isinstance(prop_val, dict):
+                        cleaned_prop = _clean(prop_val, field_name=prop_name)
+                        if "description" not in cleaned_prop:
+                            cleaned_prop["description"] = prop_name.replace("_", " ")
+                        cleaned_props[prop_name] = cleaned_prop
+                    else:
+                        cleaned_props[prop_name] = prop_val
+                cleaned[key] = cleaned_props
+            elif isinstance(value, dict):
+                cleaned[key] = _clean(value, field_name=field_name)
+            elif isinstance(value, list):
+                cleaned[key] = [
+                    _clean(item, field_name=field_name) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                cleaned[key] = value
+
+        if cleaned.get("type") == "object":
+            if "additionalProperties" not in cleaned:
+                cleaned["additionalProperties"] = False
+            if "properties" in cleaned and "required" not in cleaned:
+                cleaned["required"] = list(cleaned["properties"].keys())
+
+        return cleaned
+
+    return _clean(schema)
+
+
+def _prepare_schema(raw_schema: dict, provider: str) -> dict:
+    """Dispatch to the appropriate provider-specific schema cleaner."""
+    logger.debug("Preparing schema for provider: %s", provider)
+    if provider == "anthropic":
+        return _clean_schema_for_anthropic(raw_schema)
+    elif provider == "google":
+        return _clean_schema_for_google(raw_schema)
+    elif provider == "openai":
+        return _clean_schema_for_openai(raw_schema)
+    else:
+        return _clean_schema_generic(raw_schema)
 
 
 def _compact_schema_hint(schema: dict) -> str:
@@ -383,12 +657,11 @@ class LLMClient:
         On parse failure: one automatic retry asking the LLM to correct its output.
         """
         raw_schema = response_schema.model_json_schema()
-        cleaned_schema = _clean_json_schema(raw_schema)
-
         resolved_model = model or self.default_model
-        is_anthropic = resolved_model.startswith("anthropic/")
+        provider = _detect_provider(resolved_model)
+        cleaned_schema = _prepare_schema(raw_schema, provider)
 
-        if is_anthropic:
+        if provider == "anthropic":
             response_format = {"type": "json_object"}
             schema_instruction = (
                 f"\n\nRespond with valid JSON object. "
@@ -406,7 +679,7 @@ class LLMClient:
             system_with_schema = system
 
         # Build messages — Anthropic gets cache_control for prompt caching
-        if is_anthropic:
+        if provider == "anthropic":
             messages = [
                 {
                     "role": "system",
@@ -437,8 +710,8 @@ class LLMClient:
         )
 
         logger.debug(
-            "Structured completion request: model=%s schema=%s",
-            body["model"], response_schema.__name__,
+            "Structured completion request: model=%s schema=%s provider=%s",
+            body["model"], response_schema.__name__, provider,
         )
 
         response = await self._request_with_retry("POST", "/chat/completions", json=body)
@@ -532,12 +805,11 @@ class LLMClient:
             )
 
         raw_schema = response_schema.model_json_schema()
-        cleaned_schema = _clean_json_schema(raw_schema)
-
         resolved_model = model or self.default_model
-        is_anthropic = resolved_model.startswith("anthropic/")
+        provider = _detect_provider(resolved_model)
+        cleaned_schema = _prepare_schema(raw_schema, provider)
 
-        if is_anthropic:
+        if provider == "anthropic":
             response_format = {"type": "json_object"}
             schema_instruction = (
                 f"\n\nRespond with valid JSON object. "
@@ -555,7 +827,7 @@ class LLMClient:
             system_with_schema = system
 
         # Build messages — Anthropic gets cache_control for prompt caching
-        if is_anthropic:
+        if provider == "anthropic":
             messages = [
                 {
                     "role": "system",
@@ -587,8 +859,8 @@ class LLMClient:
         body["stream"] = True
 
         logger.debug(
-            "Streaming structured completion: model=%s schema=%s",
-            body["model"], response_schema.__name__,
+            "Streaming structured completion: model=%s schema=%s provider=%s",
+            body["model"], response_schema.__name__, provider,
         )
 
         try:
@@ -745,9 +1017,9 @@ class LLMClient:
         ]
 
         resolved_model = model or self.default_model
-        is_anthropic = resolved_model.startswith("anthropic/")
+        provider = _detect_provider(resolved_model)
 
-        if is_anthropic:
+        if provider == "anthropic":
             response_format = {"type": "json_object"}
         else:
             response_format = {

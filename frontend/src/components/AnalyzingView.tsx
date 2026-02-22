@@ -13,7 +13,6 @@ import {
   ChevronDown,
   ArrowRight,
   Check,
-  Loader2,
 } from 'lucide-react';
 import { appStore, useStore } from '../lib/store';
 import Tooltip from './Tooltip';
@@ -107,26 +106,42 @@ const STEP_DEFS = [
   { icon: Shield, label: 'Kokybės vertinimas', detail: 'Automatinis QA tikrinimas' },
 ] as const;
 
-/** Active step icon — snake tracing a square path */
+/** Active step icon — dotted snake tracing a square path */
 function ActiveStepIcon() {
   const perim = 60; // perimeter of rect(4,4,16,16,rx=2.5)
 
   return (
     <div className="relative w-5 h-5">
       <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
-        {/* Faint square border — always visible */}
+        {/* Faint dotted border — always visible */}
         <rect x="4" y="4" width="16" height="16" rx="2.5"
-              stroke="rgba(245,158,11,0.1)" strokeWidth="1.5" />
-        {/* Snake body — semi-transparent trailing tail */}
+              stroke="rgba(245,158,11,0.08)" strokeWidth="2.5"
+              strokeLinecap="round" strokeDasharray="1 5" />
+        {/* Tail tip — 1 faint dot (furthest from head) */}
         <rect x="4" y="4" width="16" height="16" rx="2.5"
               className="snake-trail"
-              stroke="rgba(251,191,36,0.2)" strokeWidth="1.5"
-              strokeDasharray={`18 ${perim - 18}`} />
-        {/* Snake head — bright leading segment with glow */}
+              stroke="rgba(251,191,36,0.1)" strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray={`2 ${perim - 2}`}
+              style={{ animationDelay: '-0.48s' }} />
+        {/* Middle body — 2 medium dots */}
+        <rect x="4" y="4" width="16" height="16" rx="2.5"
+              className="snake-trail"
+              stroke="rgba(251,191,36,0.25)" strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={`2 4 2 ${perim - 8}`}
+              style={{ animationDelay: '-0.24s' }} />
+        {/* Body near head — 2 bright dots */}
+        <rect x="4" y="4" width="16" height="16" rx="2.5"
+              className="snake-trail"
+              stroke="rgba(251,191,36,0.5)" strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeDasharray={`2 4 2 ${perim - 8}`} />
+        {/* Snake head — single brightest dot with glow */}
         <rect x="4" y="4" width="16" height="16" rx="2.5"
               className="snake-head"
-              stroke="#fbbf24" strokeWidth="2" strokeLinecap="round"
-              strokeDasharray={`6 ${perim - 6}`} />
+              stroke="#fde68a" strokeWidth="4" strokeLinecap="round"
+              strokeDasharray={`2 ${perim - 2}`} />
       </svg>
     </div>
   );
@@ -521,8 +536,6 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                   </div>
                 );
               })() : null}
-              {/* Divider after completed step */}
-              <div className="mx-5 h-px" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(94,86,79,0.5) 0, rgba(94,86,79,0.5) 12px, transparent 12px, transparent 20px)' }} />
             </div>
           );
         }
@@ -599,25 +612,21 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                             doc.status === 'pending' ? 'opacity-40' : ''
                           }`}
                         >
-                          {/* Status indicator */}
-                          {doc.status === 'done' ? (
-                            <div className="w-5 h-5 rounded-md bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                              <Check className="w-3 h-3 text-emerald-400" strokeWidth={3} />
-                            </div>
-                          ) : doc.status === 'active' ? (
-                            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                              <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
-                            </div>
-                          ) : (
-                            <div className="w-5 h-5 rounded-md border border-surface-600/40 flex items-center justify-center flex-shrink-0">
+                          {/* Status indicator — fixed width for consistent alignment */}
+                          <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                            {doc.status === 'done' ? (
+                              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                            ) : doc.status === 'active' ? (
+                              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                            ) : (
                               <div className="w-1.5 h-1.5 rounded-full bg-surface-600/30" />
-                            </div>
-                          )}
+                            )}
+                          </div>
                           {/* File icon */}
                           <FileTypeLogo extension={ext} size={14} />
                           {/* Filename */}
                           <span className={`text-[12px] font-medium truncate flex-1 min-w-0 ${
-                            doc.status === 'done' ? 'text-emerald-300/90' : doc.status === 'active' ? 'text-amber-200' : 'text-surface-500'
+                            doc.status === 'done' ? 'text-emerald-300/90' : doc.status === 'active' ? 'shimmer-text' : 'text-surface-500'
                           }`}>
                             {doc.filename}
                           </span>
@@ -650,7 +659,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                       className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/[0.02] transition-colors cursor-pointer select-none"
                     >
                       <div className={`w-1.5 h-1.5 rounded-full ${c.dotActive}`} />
-                      <span className="text-[9px] font-black text-surface-500 uppercase tracking-widest">
+                      <span className="text-[9px] font-black shimmer-text uppercase tracking-widest">
                         Įvykių žurnalas
                       </span>
                       <span className="text-[9px] font-mono text-surface-500 ml-1">
@@ -664,6 +673,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                       <div className="px-3 py-2 border-t border-surface-500/50 max-h-[200px] overflow-y-auto scrollbar-thin space-y-1" aria-live="polite" aria-label="Analizės įvykiai">
                         {eventsForStep.map((e, j) => {
                           const fmt = formatEvent(e);
+                          const isLatest = j === eventsForStep.length - 1;
                           return (
                             <div key={j} className="flex items-start gap-2.5 font-mono text-[11px] group/line py-0.5">
                               <span className="text-surface-600 shrink-0">
@@ -672,7 +682,7 @@ export default function AnalyzingView({ analysisId, error, reviewMode, onComplet
                               <span className={`shrink-0 px-1.5 py-0 rounded text-[9px] font-black ${fmt.badge}`}>
                                 {fmt.label}
                               </span>
-                              <span className="text-surface-300 truncate group-hover/line:text-brand-300 transition-colors">
+                              <span className={`truncate transition-colors ${isLatest ? 'shimmer-text' : 'text-surface-300 group-hover/line:text-brand-300'}`}>
                                 {fmt.detail}
                               </span>
                             </div>

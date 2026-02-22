@@ -18,7 +18,7 @@ dependencies = [
     "sse-starlette",
     "python-dotenv",
     "py7zr",
-    "pymupdf4llm>=0.3.4",
+    "pypdf>=6.0",
 ]
 
 [dependency-groups]

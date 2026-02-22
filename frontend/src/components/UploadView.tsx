@@ -7,6 +7,7 @@ import { FileText, ExternalLink, ShieldCheck, ScrollText, BrainCircuit } from 'l
 import { appStore, useStore } from '../lib/store';
 import ModelCarousel from './ModelCarousel';
 import Tooltip from './Tooltip';
+import AnimatedLogo from './AnimatedLogo';
 
 export default function UploadView() {
   const state = useStore(appStore);
@@ -15,6 +16,10 @@ export default function UploadView() {
     <div className="w-full animate-fade-in-up">
       {/* ── Compact Header — title + subtitle tightly grouped ──── */}
       <div className="text-center mb-6 pt-2 md:pt-4">
+        {/* ── Animated Logo Hero ────────────────────────────── */}
+        <div className="flex justify-center mb-5">
+          <AnimatedLogo size={64} animate={true} />
+        </div>
         {/* Brand + status — single compact row */}
         <div className="flex items-center justify-center gap-3 mb-4">
           <a
@@ -53,16 +58,16 @@ export default function UploadView() {
       {state.files.length > 0 && (
         <div className="mt-5 text-center animate-fade-in">
           <Tooltip content="Atidaryti failų sąrašą" side="top">
-          <button
-            onClick={() => appStore.setState({ filesPanelOpen: true })}
-            className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-brand-500/5 border border-brand-500/10 hover:border-brand-500/25 hover:bg-brand-500/8 transition-all duration-200 cursor-pointer"
-          >
-            <FileText className="w-3.5 h-3.5 text-brand-400" />
-            <span className="text-[12px] font-bold text-brand-100">
-              {state.files.length} {state.files.length === 1 ? 'failas paruoštas' : state.files.length < 10 ? 'failai paruošti' : 'failų paruošta'}
-            </span>
-            <span className="text-[10px] text-brand-500/60 group-hover:text-brand-400 transition-colors">Peržiūrėti &rarr;</span>
-          </button>
+            <button
+              onClick={() => appStore.setState({ filesPanelOpen: true })}
+              className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-brand-500/5 border border-brand-500/10 hover:border-brand-500/25 hover:bg-brand-500/8 transition-all duration-200 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-brand-400" />
+              <span className="text-[12px] font-bold text-brand-100">
+                {state.files.length} {state.files.length === 1 ? 'failas paruoštas' : state.files.length < 10 ? 'failai paruošti' : 'failų paruošta'}
+              </span>
+              <span className="text-[10px] text-brand-500/60 group-hover:text-brand-400 transition-colors">Peržiūrėti &rarr;</span>
+            </button>
           </Tooltip>
         </div>
       )}

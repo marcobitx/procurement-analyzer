@@ -441,6 +441,25 @@ async def export_analysis(
     )
 
 
+@router.get("/analyze/{analysis_id}/documents/{filename}/content")
+async def get_document_content(
+    analysis_id: str,
+    filename: str,
+    db: ConvexDB = Depends(get_db),
+):
+    """Return parsed markdown content for a specific document."""
+    docs = await db.get_documents(analysis_id)
+    for doc in docs:
+        if doc.get("filename") == filename:
+            return {
+                "filename": filename,
+                "content": doc.get("content_text", ""),
+                "page_count": doc.get("page_count", 0),
+                "doc_type": doc.get("doc_type", ""),
+            }
+    raise HTTPException(status_code=404, detail=f"Document '{filename}' not found")
+
+
 @router.get("/analyses", response_model=list[AnalysisSummary])
 async def list_analyses(
     limit: int = Query(20, le=100),
